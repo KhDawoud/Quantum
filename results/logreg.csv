@@ -1,0 +1,6 @@
+split,n_train,n_test,accuracy,balanced_accuracy,macro_f1,train_time_sec,best_params,selected_features
+0,614,154,0.7077922077922078,0.711111111111111,0.6954515491100857,0.2667773999273777,"{""C"": 1.0, ""class_weight"": ""balanced""}","preg,plas,pres,skin,insu,mass,pedi,age"
+1,614,154,0.8116883116883117,0.7953703703703703,0.79410815545618,0.23565120063722134,"{""C"": 0.1, ""class_weight"": ""balanced""}","preg,plas,pres,skin,insu,mass,pedi,age"
+2,614,154,0.7662337662337663,0.7561111111111112,0.7493217580032556,0.2164659984409809,"{""C"": 0.1, ""class_weight"": ""balanced""}","preg,plas,pres,skin,insu,mass,pedi,age"
+3,615,153,0.738562091503268,0.715754716981132,0.7138047138047139,0.22802329994738102,"{""C"": 1.0, ""class_weight"": ""balanced""}","preg,plas,pres,skin,insu,mass,pedi,age"
+4,615,153,0.6993464052287581,0.7167924528301888,0.6910990168539326,0.24725970067083836,"{""C"": 0.1, ""class_weight"": ""balanced""}","preg,plas,pres,skin,insu,mass,pedi,age"
