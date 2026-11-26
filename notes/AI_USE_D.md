@@ -31,3 +31,17 @@ Claude Code (Anthropic, model "Sonnet 5.5") inside VS Code, working in this repo
 
 ### Day-1 timing result (same session)
 Measured with `python -m src.vqc_sanity timing`: 25 splits would take about 5-7 h (> 3 h), so the 5-split fallback was recommended. Recorded in DESIGN_D.md.
+
+## Session 4: 2026-11-26: read-only review of teammate C's quantum kernel (`origin/feat/qkernel`)
+
+Findings in `notes/REVIEW_C.md`. Nothing merged, committed or pushed; no source or test file edited.
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| Fetch and compare | `git fetch --all`; read C's files with `git show` and a temporary worktree (removed). | Diff vs initial commit, grep of grids and encodings. |
+| Tests | Ran `tests/test_qkernel.py` once in the temporary worktree with the shared `.venv`. | 18 passed in 5.5 s. Installed `matplotlib==3.11.2` into `.venv` (it was missing). |
+| Cross-check | Tested C's runner against `main`'s `results/logreg.csv`. | Found the training-time column is dropped (`train_time_sec` not recognised). |
+
+### Limits (for honesty in the report)
+- C committed no results files, so the paired comparison with logreg and VQC could not be done.
+- No full `evaluate()` run of C's model was performed; the run-time projection is C's own benchmark.

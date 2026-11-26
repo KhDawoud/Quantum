@@ -43,3 +43,5 @@ Per outer split: 3 inner folds x 4 combos = 792 s, plus refit 69-179 s = **14-16
 ## Known caveats
 - ZZ pair angle x_i*x_(i+1) can reach pi^2 (> pi) as specified; the pair term can wrap. Flag to the team.
 - Timings are one noisy measurement on a laptop; re-measure before the final run.
+
+Prediction for experiment 6, written before running: the extra rotation will improve fitting on the 20-patient check, but will change the 5-split test scores by less than the spread between splits, because on this data the overlap between the groups limits the score, not the number of dials.
