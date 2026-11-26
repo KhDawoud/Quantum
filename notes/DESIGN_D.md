@@ -41,7 +41,9 @@ Per outer split: 3 inner folds x 4 combos = 792 s, plus refit 69-179 s = **14-16
 - **25 splits: ~6.0-6.7 h (zz), ~5.1-5.5 h (angle). Simple rule 325 x 87 s = 7.8 h.** Both exceed 3 h.
 - **5 splits: ~1.2-1.35 h (zz).**
 
-**Decision: apply the PROJECT_CONTEXT fallback. ALL models use the same first 5 splits (one 5-fold run) for the main table and experiments, and the report must say so.** Never mix split counts across models. Experiments 1, 3, 4 each need extra VQC runs (~1.2 h per full 5-split run per setting), so use `fixed_params` (tune once) where possible. Running outer splits in parallel (8 cores) could cut wall time but is up to `evaluate.py`.
+~~Decision: apply the PROJECT_CONTEXT fallback (first 5 splits for everything).~~ Superseded, see below.
+
+**Updated decision (Nov 26, team):** the estimate above was too pessimistic. The real 5-split VQC-ZZ run (`results/vqc_zz.csv`) took about **7 minutes per split** (370-486 s, 4 combinations), so 25 splits take about **3 hours**. Main table = **25 splits for all models** (the `evaluate()` default). Experiments = the **first 5 splits for all models**, passed explicitly with `n_splits_to_run=EXPERIMENT_EVAL_SPLITS`. Never mix split counts across models within one table or experiment. Use `fixed_params` (tune once) in experiments where possible.
 
 ## Known caveats
 - ZZ pair angle x_i*x_(i+1) can reach pi^2 (> pi) as specified; the pair term can wrap. Flag to the team.
@@ -49,4 +51,6 @@ Per outer split: 3 inner folds x 4 combos = 792 s, plus refit 69-179 s = **14-16
 
 Prediction for experiment 6, written before running: the extra rotation will improve fitting on the 20-patient check, but will change the 5-split test scores by less than the spread between splits, because on this data the overlap between the groups limits the score, not the number of dials.
 
-The use of a 5 split with 4 combinations ran faster than we thought so we're gonna change it to a 25 split with 8 combinations
+The use of a 5 split with 4 combinations ran faster than we thought so we're gonna change it to a 25 split with 4 combinations
+
+Decision, written before the 25-split run: the main VQC run uses 25 splits with 4 combinations (about 3 hours; 8 combinations would take about 6 hours). The VQC is therefore tuned less than the kernel and SVM, and the report says so. The first 5 rows of this run should match the earlier 5-split run (vqc_zz.csv), as a reproducibility check.

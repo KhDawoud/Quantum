@@ -34,8 +34,8 @@ Every model, quantum and classical, receives these exact same numbers.
 - **Splits**: 5-fold stratified cross-validation × 5 repeats = `25` splits (`seed = 42`), identical for every model.
 - **Tuning**: At most `8` setting combinations per model (`<= 4` for VQC), 3-fold inner `GridSearchCV` on training rows only, `scoring='balanced_accuracy'`.
 - **Metrics**: Accuracy, balanced accuracy, macro F1, training time (`mean ± std` across splits). Save CSVs in `results/` and charts in `figures/`.
-- **Quick Mode**: First 5 splits and smaller grids for development.
-- **Timing Decision (end of Day 1)**: Measure 1 VQC fit at 8 qubits. Full tuning needs ~325 fits (`25 splits × (4 combinations × 3 inner folds + 1 refit)`). If `325 × fit_time > 3 hours`, ALL models use the same first 5 splits (one 5-fold run) for the main table and experiments, and the report discloses this. Never mix split counts across models.
+- **Quick Mode**: First 5 splits (`QUICK_EVAL_SPLITS = 5`) and smaller grids for development.
+- **Split counts (team decision, Nov 26)**: Main comparison table = all `25` splits for all four models (`evaluate()` default, `DEFAULT_EVAL_SPLITS = 25`). Experiments = the first `5` of those splits for all models, passed explicitly with `n_splits_to_run=EXPERIMENT_EVAL_SPLITS`. Measured 8-qubit VQC time is about 7 minutes per split (4 combinations), about 3 hours for 25 splits; this replaces the earlier 5-split fallback, which came from an old estimate of 6–7.8 hours. Never mix split counts across models within one table or experiment.
 - **Significance Test**: `compare_models(results_a, results_b)` in `src/evaluate.py` applies the Nadeau–Bengio corrected resampled paired t-test (variance multiplied by `1/J + n_test/n_train`, where `J` is the number of splits).
 
 ## MODELS (Main comparison uses all 8 columns = 8 qubits)

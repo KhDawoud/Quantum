@@ -13,7 +13,14 @@ from sklearn.datasets import make_moons
 from sklearn.linear_model import LogisticRegression
 
 from src.data import load_pima
-from src.evaluate import compare_models, evaluate, get_splits
+from src.evaluate import (
+    DEFAULT_EVAL_SPLITS,
+    EXPERIMENT_EVAL_SPLITS,
+    QUICK_EVAL_SPLITS,
+    compare_models,
+    evaluate,
+    get_splits,
+)
 from src.model_logreg import PARAM_GRID, make_model
 
 
@@ -160,14 +167,14 @@ def test_evaluate_runs_logreg_saves_csv_and_quick_mode(tmp_path):
         "selected_features",
     ]
     assert list(df.columns) == expected_cols
-    assert len(df) == DEFAULT_EVAL_SPLITS == 5
-    assert list(df["split"]) == [0, 1, 2, 3, 4]
+    assert len(df) == DEFAULT_EVAL_SPLITS == 25
+    assert list(df["split"]) == list(range(25))
     assert ((df["accuracy"] >= 0.0) & (df["accuracy"] <= 1.0)).all()
     assert ((df["balanced_accuracy"] >= 0.0) & (df["balanced_accuracy"] <= 1.0)).all()
     assert ((df["macro_f1"] >= 0.0) & (df["macro_f1"] <= 1.0)).all()
     assert (df["train_time_sec"] >= 0.0).all()
 
-    assert summary["n_splits"] == 5
+    assert summary["n_splits"] == 25
     assert summary["accuracy_mean"] == pytest.approx(float(df["accuracy"].mean()))
     assert summary["balanced_accuracy_mean"] == pytest.approx(
         float(df["balanced_accuracy"].mean())
@@ -196,6 +203,69 @@ def test_evaluate_runs_logreg_saves_csv_and_quick_mode(tmp_path):
     assert len(quick_calls) <= 35
 
 
+FAST_FIXED = {"C": 1.0, "class_weight": "balanced"}
+
+
+def test_split_count_constants():
+    assert DEFAULT_EVAL_SPLITS == 25
+    assert QUICK_EVAL_SPLITS == 5
+    assert EXPERIMENT_EVAL_SPLITS == 5
+
+
+def test_evaluate_runs_25_splits_by_default(tmp_path):
+    summary = evaluate(
+        "default25", make_model, PARAM_GRID, fixed_params=FAST_FIXED, results_dir=tmp_path
+    )
+    df = pd.read_csv(tmp_path / "default25.csv")
+    assert summary["n_splits"] == 25
+    assert list(df["split"]) == list(range(25))
+
+
+def test_quick_mode_still_runs_exactly_5_splits(tmp_path):
+    # Quick mode stays at 5 even with the default (25) or a larger explicit request.
+    for name, kwargs in (("quick_default", {}), ("quick_ask25", {"n_splits_to_run": 25})):
+        summary = evaluate(
+            name, make_model, PARAM_GRID, quick=True, results_dir=tmp_path, **kwargs
+        )
+        assert summary["n_splits"] == 5
+        assert list(pd.read_csv(tmp_path / f"{name}.csv")["split"]) == [0, 1, 2, 3, 4]
+
+
+def test_experiment_split_count_runs_5_splits(tmp_path):
+    summary = evaluate(
+        "exp5",
+        make_model,
+        PARAM_GRID,
+        fixed_params=FAST_FIXED,
+        n_splits_to_run=EXPERIMENT_EVAL_SPLITS,
+        results_dir=tmp_path,
+    )
+    assert summary["n_splits"] == 5
+
+
+def test_first_5_of_25_identical_to_5_split_run(tmp_path):
+    X, y = load_pima()
+    all_25 = get_splits(X, y)
+    assert len(all_25) == 25
+    # The 5-split run uses exactly the first 5 index pairs of the 25 ...
+    for (tr_a, te_a), (tr_b, te_b) in zip(all_25[:5], get_splits(X, y, n_repeats=1)):
+        np.testing.assert_array_equal(tr_a, tr_b)
+        np.testing.assert_array_equal(te_a, te_b)
+
+    # ... so its per-split results equal the first 5 rows of the 25-split run.
+    evaluate("run25", make_model, PARAM_GRID, results_dir=tmp_path)
+    evaluate(
+        "run5",
+        make_model,
+        PARAM_GRID,
+        n_splits_to_run=EXPERIMENT_EVAL_SPLITS,
+        results_dir=tmp_path,
+    )
+    df25 = pd.read_csv(tmp_path / "run25.csv").drop(columns="train_time_sec")
+    df5 = pd.read_csv(tmp_path / "run5.csv").drop(columns="train_time_sec")
+    pd.testing.assert_frame_equal(df25.iloc[:5].reset_index(drop=True), df5)
+
+
 def test_evaluate_rejects_oversized_param_grid(tmp_path):
     bad_grid = {"C": [0.01, 0.1, 1.0], "max_iter": [100, 500, 1000]}
     with pytest.raises(ValueError, match="8"):
@@ -203,8 +273,14 @@ def test_evaluate_rejects_oversized_param_grid(tmp_path):
 
 
 def test_evaluate_n_features_and_make_moons(tmp_path):
+    # Experiments 1 (qubits) and 5 (moons) use the first 5 splits, passed explicitly.
     summary_k4 = evaluate(
-        "logreg_k4", make_model, PARAM_GRID, n_features=4, results_dir=tmp_path
+        "logreg_k4",
+        make_model,
+        PARAM_GRID,
+        n_features=4,
+        n_splits_to_run=EXPERIMENT_EVAL_SPLITS,
+        results_dir=tmp_path,
     )
     df_k4 = summary_k4["results"]
     assert len(df_k4) == 5
@@ -219,6 +295,7 @@ def test_evaluate_n_features_and_make_moons(tmp_path):
         X=X_moons,
         y=y_moons,
         zero_as_missing_cols=(),
+        n_splits_to_run=EXPERIMENT_EVAL_SPLITS,
         results_dir=tmp_path,
     )
     moons_csv = tmp_path / "logreg_moons.csv"

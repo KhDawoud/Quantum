@@ -39,7 +39,7 @@ Why the preprocessing steps happen in this exact order, learned strictly inside 
 | Choice | Why |
 |---|---|
 | `get_splits()` (`RepeatedStratifiedKFold(5, 5, seed=42)`) | Generates all 25 deterministic stratified splits; every patient appears in exactly 5 test sets overall (and exactly 1 test set in the first 5 splits). |
-| **5-split fallback (`DEFAULT_EVAL_SPLITS = 5`)** | Per `PROJECT_CONTEXT.md` Timing Decision and Member D's Day-1 measurement (`origin/vqc:notes/DESIGN_D.md`), 25 splits of 8-qubit VQC-ZZ would take ~6.0–7.8 h (`> 3 h`). Using the first 5 splits (one complete stratified 5-fold repeat, ~1.2–1.35 h for VQC) keeps all 4 models on identical splits and is explicitly disclosed here and in the report. |
+| **Split counts (`DEFAULT_EVAL_SPLITS = 25`, `QUICK_EVAL_SPLITS = 5`, `EXPERIMENT_EVAL_SPLITS = 5`)** | Team decision (Nov 26): the main table uses all 25 splits for all four models (the `evaluate()` default); experiments use the first 5 splits for all models, passed explicitly with `n_splits_to_run=EXPERIMENT_EVAL_SPLITS`; quick mode stays at 5. The measured 8-qubit VQC time is about 7 minutes per split (about 3 h for 25), so the earlier 5-split fallback (based on an old 6–7.8 h estimate) no longer applies. |
 | `Pipeline([("prep", PimaPreprocessor), ("clf", model)])` | Putting preprocessing inside the scikit-learn `Pipeline` guarantees both outer test rows AND inner 3-fold validation rows are transformed using only their respective training rows—zero data leakage during `GridSearchCV`. |
 | Inner tuning (`3`-fold `GridSearchCV`, `balanced_accuracy`, `<= 8` combos) | Gives every model the same tuning budget and selects hyperparameters using balanced accuracy because Pima is 65.1% negative / 34.9% positive. |
 | `train_size` + `fixed_params` + `tune_hyperparameters()` | Supports Experiment 2: draws 10 stratified subsets (`30`, `60`, `120`, `200`) from the `614`-patient pool evaluated on a fixed `20%` (`154`-patient) test set, skipping noisy inner CV on tiny sets by reusing settings tuned once on the `614`-patient pool. |
@@ -48,6 +48,8 @@ Why the preprocessing steps happen in this exact order, learned strictly inside 
 ---
 
 ## 4. Official Logistic Regression Results (`results/logreg.csv`, 5 splits, 8 features)
+
+> **Out of date (Nov 26):** these numbers come from the old 5-split run. Under the 25-split decision `results/logreg.csv` must be rerun with the default `evaluate()` before it goes into the main table.
 
 | Metric | Value (`mean ± std`) | Notes |
 |---|---|---|

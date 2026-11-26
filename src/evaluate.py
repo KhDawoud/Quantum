@@ -35,10 +35,18 @@ from src.data import ZERO_AS_MISSING_COLS, PimaPreprocessor, load_pima
 RANDOM_SEED = 42
 DEFAULT_N_SPLITS = 5
 DEFAULT_N_REPEATS = 5
-# Timing fallback per PROJECT_CONTEXT.md and Member D's VQC timing in DESIGN_D.md:
-# 8-qubit VQC-ZZ takes ~6.0-7.8 h for 25 splits (> 3 h threshold), so all models
-# evaluate on the exact same first 5 splits (one complete stratified 5-fold repeat).
-DEFAULT_EVAL_SPLITS = 5
+# Team decision (Nov 26): the main comparison table uses all 25 splits
+# (5-fold x 5 repeats, seed 42) for every model. This replaces the earlier 5-split
+# fallback, which came from an old VQC estimate of 6-7.8 h for 25 splits. The
+# measured 8-qubit VQC-ZZ time is about 7 minutes per split (4 combinations),
+# so about 3 hours for 25 splits.
+DEFAULT_EVAL_SPLITS = 25
+# Quick (development) mode always runs only the first 5 splits.
+QUICK_EVAL_SPLITS = 5
+# Experiments: every model uses the first 5 of the 25 splits (one complete
+# stratified 5-fold repeat). Experiment scripts must pass this explicitly:
+# evaluate(..., n_splits_to_run=EXPERIMENT_EVAL_SPLITS).
+EXPERIMENT_EVAL_SPLITS = 5
 INNER_CV_SPLITS = 3
 MAX_PARAM_GRID_COMBOS = 8
 DEFAULT_RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
@@ -274,7 +282,7 @@ def evaluate(
         all_splits = get_splits(X_data, y_arr)
         limit = DEFAULT_EVAL_SPLITS if n_splits_to_run is None else n_splits_to_run
         if quick:
-            limit = min(limit, DEFAULT_EVAL_SPLITS)
+            limit = min(limit, QUICK_EVAL_SPLITS)
         if limit < 1 or limit > len(all_splits):
             raise ValueError(
                 f"n_splits_to_run must be between 1 and {len(all_splits)}, got {limit}."

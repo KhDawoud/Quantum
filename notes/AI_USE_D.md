@@ -59,3 +59,19 @@ Result: **no change to `src/model_vqc.py` was needed.** The code already matches
 ### Honest limits
 - The loss divides by the batch size, not by the sum of the weights, so the average weight of a mini-batch varies slightly with its class mix (same convention as scikit-learn's weighted losses). Not a mismatch, but worth knowing.
 - A first attempt to run the whole `tests/test_vqc.py` exceeded 2 minutes (the training tests are not quick, or the CPU was shared) and was stopped.
+
+## Session 6: 2026-11-26: switch the main table from 5 to 25 splits
+
+Team decision: main table = 25 splits for all models; experiments = first 5 splits, passed explicitly; quick mode = 5. `src/evaluate.py` belongs to teammate A, who agreed to the change.
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| Search | Searched the repo for `DEFAULT_EVAL_SPLITS`, `n_splits_to_run`, "5 splits", "first 5", "fallback" and hard-coded split counts. | Listed every hit before editing. |
+| `src/evaluate.py` | `DEFAULT_EVAL_SPLITS` 5 -> 25; new `QUICK_EVAL_SPLITS = 5` (used by quick mode) and `EXPERIMENT_EVAL_SPLITS = 5`; replaced the fallback comment. Split generation, training-size mode and `compare_models()` unchanged. | |
+| Tests | Updated the default-run test to 25; the qubit and moons tests now pass `n_splits_to_run=EXPERIMENT_EVAL_SPLITS`; added tests for the constants, 25 by default, quick = 5 (even when asked for 25), experiment = 5, and first 5 of 25 identical to the 5-split run (same rows in the CSV). | `tests/test_evaluate.py` + `tests/test_data.py`: 23 passed in 25 s. No VQC training. |
+| Notes | Updated PROJECT_CONTEXT.md, notes/DESIGN_A.md, notes/DESIGN_D.md, notes/REVIEW_C.md. | n/a |
+
+### Honest limits
+- `results/logreg.csv` and `results/vqc_zz.csv` are 5-split results and must be rerun for the main table; not rerun or edited here.
+- C's experiment runner on `feat/qkernel` still needs `n_splits_to_run=EXPERIMENT_EVAL_SPLITS` (not on main, not changed).
+- A note in DESIGN_D.md says "25 split with 8 combinations"; the team decision and PROJECT_CONTEXT say at most 4 combinations for the VQC. Left as written, flagged to the user.

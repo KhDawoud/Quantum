@@ -1,5 +1,7 @@
 # Review of teammate C's quantum kernel work (read-only)
 
+> **Update (Nov 26, later):** the team switched the main table to 25 splits (`evaluate()` default is now 25) and experiments to the first 5 splits, passed explicitly with `n_splits_to_run=EXPERIMENT_EVAL_SPLITS`. Where this review says "the team rule is 5 splits" or "the default is 5", that is no longer true. C's `run_exp3_encoding_kernel` (`src/experiments.py` lines 105 and 112 on `feat/qkernel`) calls `evaluate()` without `n_splits_to_run`, so after merging `main` it would run 25 splits; C should add `n_splits_to_run=EXPERIMENT_EVAL_SPLITS` to both calls.
+
 Reviewed: `origin/feat/qkernel`, one commit **919a9eb** by Khaled Dawoud, 2026-11-26 18:23 +0200, message "quantum kernel implementation and results". Based on the initial commit `2076017`, so it does **not** contain `main`'s later work (logistic regression, the real `evaluate.py`).
 Method: `git fetch --all`, `git show`, a temporary worktree outside the working folder (removed), and C's own tests run once. Nothing merged, committed or pushed; the working folder stayed on `vqc`.
 
