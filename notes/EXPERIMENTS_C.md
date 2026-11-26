@@ -197,3 +197,35 @@
 - On curved **artificial** `make_moons` data (`n = 400`, `noise = 0.2`), the frozen 2-qubit ZZ quantum kernel reached **93.25%** balanced accuracy, significantly beating both straight-line **Logistic Regression** (`83.50%`, `+9.75%`, `p = 0.0095`) and unentangled **Angle (`RY`)** encoding (`87.25%`, `+6.00%`, `p = 0.0299`).
 - Unlike Experiment 3 on 8-qubit Pima (where ZZ and Angle showed no significant difference), the pairwise `x0 * x1` ZZ interaction clearly helps here because the two crescent moons genuinely curve around each other, and 2 qubits avoid high-qubit kernel concentration (`var = 0.035–0.073`).
 - **Interpretation vs. Hypothesis**: This positive control proves our `QuantumKernelSVC` circuit and evaluation pipeline can learn strong curved boundaries cleanly; our **hypothesis** for why ZZ did not beat Logistic Regression on Pima (`73.97%` vs. `74.20%`) is that real Pima diabetes features have a mostly smooth, overlapping boundary rather than sharp interlocking curves.
+
+---
+
+## Follow-Up 25-Split Run: Simple Angle (`RY`) Encoding (`results/qkernel_angle.csv`)
+
+> **Disclosure:** `results/qkernel.csv` (ZZ, 25 splits) remains the planned primary quantum kernel run. `results/qkernel_angle.csv` is an additional 25-split comparison run requested afterwards to compare unentangled `RY` angle encoding at full 25-split power against all four main models.
+
+### Setup & Reproducibility Check
+- **Configuration**: Frozen `make_model(encoding='angle')` (`RY(gamma * x_i)` per qubit, no entanglement), `n_features=8`, `class_weight='balanced'`, exact same 8-combination `PARAM_GRID`, and all `25` standard Pima splits (`DEFAULT_EVAL_SPLITS = 25`, `seed = 42`) saved to `results/qkernel_angle.csv`.
+- **Reproducibility check**: First 5 rows of `results/qkernel_angle.csv` (excluding `train_time_sec`) match `results/exp3_qkernel_angle.csv` identically.
+
+### 25-Split Metrics (`results/qkernel_angle.csv`)
+
+| Model | Splits | Accuracy (Mean ± Std) | Balanced Accuracy (Mean ± Std) | Macro F1 (Mean ± Std) | Train Time / Split |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Angle Quantum Kernel (`RY`, `results/qkernel_angle.csv`)** | 25 | 74.42% ± 4.06% | **74.68% ± 3.99%** | 73.15% ± 4.08% | 0.2607s ± 0.0090s |
+| **ZZ Quantum Kernel (planned main, `results/qkernel.csv`)** | 25 | 73.93% ± 3.50% | **73.97% ± 3.50%** | 72.53% ± 3.50% | 0.8274s ± 0.0185s |
+
+*(Always-guess majority floor: `65.10%`. Inner 3-fold CV picked `{"C": 1.0, "gamma": 0.5}` on `12` splits, `{"C": 10.0, "gamma": 0.5}` on `8` splits, `{"C": 1.0, "gamma": 1.0}` on `4` splits, and `{"C": 0.1, "gamma": 0.5}` on `1` split.)*
+
+### Paired Comparisons vs. All Main 25-Split Models (`compare_models` on `balanced_accuracy`)
+
+| Comparison (25 Matching Pima Splits) | Angle Kernel | Comparison Model | Difference (`Angle − model`) | `t`-stat | `p`-value | Conclusion |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **vs. ZZ Quantum Kernel (`results/qkernel.csv`)** | 74.68% | 73.97% | +0.71% | +0.4213 | 0.6773 | **no significant difference found** |
+| **vs. Logistic Regression (`results/logreg.csv`)** | 74.68% | 74.21% | +0.47% | +0.2745 | 0.7860 | **no significant difference found** |
+| **vs. RBF SVM (`results/rbf_svm.csv`)** | 74.68% | 74.99% | -0.31% | -0.3745 | 0.7113 | **no significant difference found** |
+| **vs. VQC ZZ (`results/vqc_zz_25.csv`)** | 74.68% | 63.07% | +11.61% | +3.7225 | 0.0011 | **significant difference found (p < 0.05)** |
+
+### Plain-Language Takeaway
+- Across all `25` Pima splits, unentangled **Angle (`RY`)** encoding reached **74.68%** balanced accuracy (`0.2607s/split`, `3.2x` faster than ZZ), landing statistically indistinguishable from both entangled **ZZ** (`+0.71%`, `p = 0.6773` → **no significant difference found**) and the classical baselines (`p = 0.7860` vs. Logistic Regression; `p = 0.7113` vs. RBF SVM).
+- Because this Angle kernel has zero entanglement and equals a closed-form classical product of cosines, getting essentially the same `~74–75%` score as ZZ and RBF SVM reinforces that ZZ entanglement adds no measurable advantage on Pima diabetes data.
