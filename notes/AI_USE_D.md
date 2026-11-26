@@ -87,3 +87,44 @@ Team decision: main table = 25 splits for all models; experiments = first 5 spli
 - One exam only; the causes listed are hypotheses, not proven.
 - The diagnostic printed exam-0 test scores; no design choice was changed because of them (disclosed in DESIGN_D.md).
 - The pasted section refers to a "dead-dials note" that does not exist in DESIGN_D.md, and quotes main-run figures (63.1% balanced accuracy, 6 min per exam) that I did not check against `results/vqc_zz_25.csv`.
+
+## Session 8: 2026-11-26: experiment 3 (angle vs ZZ encoding)
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| Step 0 | Checked git (clean, up to date), the names in `src/evaluate.py` and `src/model_vqc.py`, that `results/vqc_zz_25.csv` has 25 rows, matplotlib installed, and that `src/model_vqc.py` was last changed (14:47) before the main run's results (22:02). | All checked by commands. |
+| Prediction | Wrote the user's own prediction into `notes/EXPERIMENTS_D.md` at 22:42, before any run. | n/a |
+| Script | Wrote `src/run_exp_d.py`: runs through the shared `evaluate()`, refuses to overwrite, writes the log and the manifest row, and produces the comparison table and figure. | Quick check (1 exam, 2 settings) in `scratch_quick/`, then deleted. |
+| Run | Angle encoding, 5 exams, 4 combinations, one run, nothing else running (26 min). | `results/experiments/exp3_vqc_angle_5ex.csv`; compare_models vs the first 5 rows of the ZZ main run: +8.5 points balanced accuracy, p = 0.001. |
+| Notes | Results, per-exam winners, figure, and explanation (marked hypothesis where not measured). | n/a |
+
+### Honest limits
+- The manifest's git commit (`cab351d`) is the commit checked out during the run; `src/run_exp_d.py` itself was not yet committed at that time.
+- The manifest's command is written as `python -m src.run_exp_d exp3`; it was run with `.venv/Scripts/python`.
+- The comparison with logistic regression is for reference only and was not saved as a file.
+
+## Session 9: 2026-11-26: experiment 1 (4 and 6 columns, ZZ)
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| Prediction | Wrote the user's prediction into `notes/EXPERIMENTS_D.md` at 23:23, before any run, plus a note that it was also written after experiment 3's result. | n/a |
+| Script | Added `exp1`, `exp1-dials`, `exp1-report` to `src/run_exp_d.py`. | Quick checks for 4 and 6 columns in `scratch_quick/`, then deleted. |
+| Live dials | Gradient check on `build_qnode` with random dials: 12/24, 20/36, 28/48 at 4/6/8 qubits, same for ZZ and angle. | Run took 10 s. |
+| Runs | 4 columns, then 6 columns, one after the other (8 and 12 min). | compare_models vs the first 5 rows of the ZZ main run: 4 vs 8 +3.1 points (p = 0.47), 6 vs 8 -2.3 points (p = 0.56); no significant difference found. |
+| Code reading | Found that `PimaPreprocessor` outputs the kept columns in rank order (`src/data.py` lines 207, 235), so ZZ neighbour pairs change with the column count. | Confirmed from `selected_features` in the result files. |
+
+### Honest limits
+- The manifest rows record commit `cab351d`; `src/run_exp_d.py` was not yet committed at that time.
+
+## Session 10: 2026-11-27: experiment 2 (training patients, ZZ)
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| Prediction | Wrote the user's prediction (verbatim) into `notes/EXPERIMENTS_D.md` at 00:24, before any run, plus a note that it was written after experiments 3 and 1. | n/a |
+| Script | Added `exp2` and `exp2-report` to `src/run_exp_d.py`: tune once on the 614-patient pool (`tune_hyperparameters`), save the winner in `results/experiments/logs/exp2_vqc_tuning.txt`, then 4 sizes x 10 draws with `fixed_params`. | Quick check (3 draws of 30) in `scratch_quick/`, then deleted. |
+| Run | Tuning winner epochs 40, lr 0.05 (297 s); 40 trainings; total 9 min, one step at a time. | Balanced accuracy 54.5% (30), 54.6% (60), 57.5% (120), 60.5% (200). |
+| Notes | Results, spread, figure, explanation (hypothesis marked). Pointed out that the significance part of the prediction cannot be tested with `compare_models`. | n/a |
+
+### Honest limits
+- No significance test between sizes was run.
+- Manifest rows record commit `cab351d`; `src/run_exp_d.py` was not yet committed then.

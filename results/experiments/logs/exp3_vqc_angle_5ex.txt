@@ -1,0 +1,10 @@
+Results for 'exp3_vqc_angle_5ex' (5 splits, 8 features, quick=False)
+  Always-guess floor : 65.10%
+  Accuracy           : 70.70% +/- 4.04%
+  Balanced accuracy  : 69.96% +/- 3.98%
+  Macro F1           : 68.91% +/- 4.01%
+  Train time / split : 303.9055s +/- 14.2137s
+  Saved CSV          : C:\Users\Lenovo\dev\Quantum Computing Competition\Quantum\results\experiments\exp3_vqc_angle_5ex.csv
+  Started            : 2026-11-26 22:44 +0200
+  Finished           : 2026-11-26 23:10 +0200
+  Winning settings   : ['{"epochs": 20, "lr": 0.02}', '{"epochs": 20, "lr": 0.02}', '{"epochs": 20, "lr": 0.02}', '{"epochs": 20, "lr": 0.05}', '{"epochs": 20, "lr": 0.02}']
