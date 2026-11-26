@@ -105,6 +105,30 @@ def test_class_weights_favour_the_rare_class():
     np.testing.assert_allclose(model.class_weights_, [60 / 80, 60 / 40])
 
 
+def test_balanced_class_weights_computed_from_the_labels_given_to_fit():
+    """Weights = n / (2 * class count), recomputed from whatever y fit() receives."""
+    X, _ = fake_data(n=10, n_features=2)
+
+    # 7 healthy (0) and 3 diabetic (1): 10/(2*7) = 0.714..., 10/(2*3) = 1.666...
+    y_7_3 = np.array([0] * 7 + [1] * 3)
+    w = make_model(epochs=1).fit(X, y_7_3).class_weights_
+    np.testing.assert_allclose(w, [10 / 14, 10 / 6])
+    assert w[0] == pytest.approx(0.714, abs=1e-3)
+    assert w[1] == pytest.approx(1.667, abs=1e-3)
+
+    # A different label mix (same X): weights must change, so they are not hard-coded.
+    y_5_5 = np.array([0] * 5 + [1] * 5)
+    w55 = make_model(epochs=1).fit(X, y_5_5).class_weights_
+    np.testing.assert_allclose(w55, [1.0, 1.0])
+    y_9_1 = np.array([0] * 9 + [1])
+    w91 = make_model(epochs=1).fit(X, y_9_1).class_weights_
+    np.testing.assert_allclose(w91, [10 / 18, 10 / 2])
+
+    # Same ratio as our real data (500 healthy / 268 diabetic): about 1.87.
+    assert (w[1] / w[0]) == pytest.approx(7 / 3)  # ratio = count ratio
+    assert (768 / (2 * 268)) / (768 / (2 * 500)) == pytest.approx(500 / 268)
+
+
 def test_sklearn_clone_and_gridsearch():
     X, y = fake_data(n=40, n_features=2)
     base = make_model(epochs=1)

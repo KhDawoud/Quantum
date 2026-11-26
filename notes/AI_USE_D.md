@@ -45,3 +45,17 @@ Findings in `notes/REVIEW_C.md`. Nothing merged, committed or pushed; no source 
 ### Limits (for honesty in the report)
 - C committed no results files, so the paired comparison with logreg and VQC could not be done.
 - No full `evaluate()` run of C's model was performed; the run-time projection is C's own benchmark.
+
+## Session 5: 2026-11-26: check that the VQC matches the team's "balanced class weighting" decision
+
+Result: **no change to `src/model_vqc.py` was needed.** The code already matches balanced weighting exactly.
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| Code check | Read `fit()`, `predict_proba()`, `predict()` and `PARAM_GRID` in `src/model_vqc.py`. | Weights computed in `fit()` (line ~167) as `n / (2 x count)` from the `y` it receives; per-patient weights sliced with the same mini-batch indices; loss is `mean(weight x cross-entropy)`; `predict` does not use them; no weighting option in `PARAM_GRID`. |
+| Test | Added `test_balanced_class_weights_computed_from_the_labels_given_to_fit` to `tests/test_vqc.py` (7/3 labels give 0.714 and 1.667; 5/5 gives 1/1; 9/1 gives 0.556 and 5.0; ratio equals the count ratio). | Ran it with 4 other quick tests (class-weight test, grid size, IsingZZ equivalence, input range): 5 passed in 4 s. The slower training tests were not run. |
+| Notes | Added the team sentence to `notes/DESIGN_D.md`. | n/a |
+
+### Honest limits
+- The loss divides by the batch size, not by the sum of the weights, so the average weight of a mini-batch varies slightly with its class mix (same convention as scikit-learn's weighted losses). Not a mismatch, but worth knowing.
+- A first attempt to run the whole `tests/test_vqc.py` exceeded 2 minutes (the training tests are not quick, or the CPU was shared) and was stopped.

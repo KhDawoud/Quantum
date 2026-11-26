@@ -23,6 +23,9 @@ File: `src/model_vqc.py`. Checks: `tests/test_vqc.py`, `src/vqc_sanity.py`.
 | Rejects inputs outside [0, pi] | Enforces the angle-bounds rule inside the model. |
 | Circuit rebuilt inside `predict_proba` | Keeps fitted models picklable for parallel runs. |
 
+All models use balanced class weighting, fixed and not tuned, because the classes are uneven and we evaluate on balanced accuracy.
+(VQC: weights are `n / (2 x class count)`, computed inside `fit()` from the labels it receives, about 0.77 healthy and 1.43 diabetic on the full data; applied per patient as `mean(weight x cross-entropy)` over each mini-batch; not used in `predict`; not in `PARAM_GRID`.)
+
 ## Docs vs. the prompt (PennyLane 0.45.1)
 Everything in the prompt matches the installed version. Notes: the 0.45 docs write the alias `qp` (old `qml` still works, no warnings); no torch/jax installed, so backprop uses autograd (`pennylane.numpy`), which is fine; PennyLane's Adam default `beta2` is 0.99 (not 0.999), left as is.
 
@@ -45,3 +48,5 @@ Per outer split: 3 inner folds x 4 combos = 792 s, plus refit 69-179 s = **14-16
 - Timings are one noisy measurement on a laptop; re-measure before the final run.
 
 Prediction for experiment 6, written before running: the extra rotation will improve fitting on the 20-patient check, but will change the 5-split test scores by less than the spread between splits, because on this data the overlap between the groups limits the score, not the number of dials.
+
+The use of a 5 split with 4 combinations ran faster than we thought so we're gonna change it to a 25 split with 8 combinations
