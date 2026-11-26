@@ -37,8 +37,21 @@ def test_param_grid_contract():
         n_combos *= len(vals)
     assert n_combos <= 8
     assert "C" in PARAM_GRID and "gamma" in PARAM_GRID
+    assert "class_weight" not in PARAM_GRID
     assert all(c > 0 for c in PARAM_GRID["C"])
     assert all(0.0 < g <= 1.0 for g in PARAM_GRID["gamma"])
+
+
+def test_balanced_class_weight_fixed():
+    assert make_model().get_params()["class_weight"] == "balanced"
+    assert make_model(encoding="angle").get_params()["class_weight"] == "balanced"
+
+    rng = np.random.default_rng(42)
+    X_tiny = rng.uniform(0.0, np.pi, size=(10, 2))
+    y_tiny = np.array([0] * 7 + [1] * 3)
+    est = make_model().fit(X_tiny, y_tiny)
+    assert est.svc_.class_weight == "balanced"
+    np.testing.assert_allclose(est.svc_.class_weight_, [10.0 / 14.0, 10.0 / 6.0], atol=1e-3)
 
 
 def test_zz_circuit_structure_3_qubits():

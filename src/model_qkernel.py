@@ -335,7 +335,7 @@ class QuantumKernelSVC(BaseEstimator, ClassifierMixin):
 
 def make_model(encoding: str = "zz", **kwargs: Any) -> QuantumKernelSVC:
     """Return a scikit-learn compatible Quantum Kernel SVM estimator."""
-    return QuantumKernelSVC(encoding=encoding, **kwargs)
+    return QuantumKernelSVC(encoding=encoding, class_weight="balanced", **kwargs)
 
 
 def kernel_stats(K: np.ndarray) -> dict[str, float]:
