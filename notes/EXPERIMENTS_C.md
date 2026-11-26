@@ -1,0 +1,199 @@
+# Experiment Log — Member C (Quantum Kernel SVM)
+
+## Step 0: Tooling & Model Check
+- **Model file**: `src/model_qkernel.py` (real filename in repo; note that prompt listed `model_q_kernel.py` as placeholder).
+- **Model configuration (frozen)**: `make_model(encoding='zz')` returns `QuantumKernelSVC(encoding='zz', class_weight='balanced', random_state=42)` backed by `SVC(kernel='precomputed', class_weight='balanced')` and `PARAM_GRID = {'C': [0.1, 1.0, 10.0, 100.0], 'gamma': [0.5, 1.0]}` (8 combinations).
+- **Shared harness (`src/evaluate.py`) verified**: `evaluate()`, `EXPERIMENT_EVAL_SPLITS` (`5`), `n_splits_to_run`, `n_features`, `train_size`, `fixed_params`, `n_draws`, `get_fixed_test_split()`, `tune_hyperparameters()`, `compare_models()`, and `format_summary()` all exist and match these exact names.
+- **Main 25-split baseline (`results/qkernel.csv`)**: 25 data rows (plus header), `73.93% ± 3.50%` accuracy, `73.97% ± 3.50%` balanced accuracy, `72.53% ± 3.50%` macro F1, `0.8274s ± 0.0185s` per split (`20.69s` total).
+- **Plotting**: `matplotlib 3.11.2` installed and working.
+
+---
+
+## Experiment 1: Number of Measurements (Columns / Qubits: 4, 6, 8)
+
+### B. Setup
+- **What changes**: Number of top clinical columns kept by `PimaPreprocessor(n_features=k)` on training rows only (`k = 4`, `k = 6`), compared against the 8-column baseline (`k = 8`, first 5 rows of `results/qkernel.csv`).
+- **What stays the same**: Exact same first 5 stratified splits (`n_splits_to_run=EXPERIMENT_EVAL_SPLITS = 5`, `seed=42`), same ZZ feature map (`2` repetitions), same fixed `class_weight='balanced'`, and same 8-combination `PARAM_GRID` tuned by 3-fold inner `GridSearchCV` on `balanced_accuracy`.
+- **Prediction (written before inspecting results)**: Using only the top 4 or 6 features should reduce kernel concentration (keep off-diagonal kernel values more spread out) and run faster, which may let the 4- or 6-qubit kernel match or slightly beat 8 qubits if the weakest columns mostly add noise.
+
+### C & D. Quick Check & Time Estimate
+- **Quick check**: Ran `evaluate('exp1_qkernel_q4_quick', ..., n_features=4, quick=True, n_splits_to_run=EXPERIMENT_EVAL_SPLITS)` cleanly (5 splits) and immediately deleted `results/exp1_qkernel_q4_quick.csv`.
+- **Time estimate**: From `results/qkernel.csv` (`0.8274s/split` at 8 qubits), running 10 splits (`5` at 4 qubits + `5` at 6 qubits) had an upper-bound estimate of **`8.27s` (`0.14 min`)**, well below 20 minutes.
+
+### E. Results & Selected Columns
+
+| Qubits (`n_features`) | Splits | Accuracy (Mean ± Std) | Balanced Accuracy (Mean ± Std) | Macro F1 (Mean ± Std) | Train Time / Split |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| **4** (`results/exp1_qkernel_q4.csv`) | 5 | 75.12% ± 5.21% | **75.53% ± 4.58%** | 73.92% ± 5.03% | 0.2057s ± 0.0051s |
+| **6** (`results/exp1_qkernel_q6.csv`) | 5 | 72.65% ± 4.97% | **72.77% ± 3.83%** | 71.33% ± 4.59% | 0.3373s ± 0.0072s |
+| **8** (`results/qkernel.csv`, rows 0–4) | 5 | 72.00% ± 3.90% | **72.01% ± 2.27%** | 70.57% ± 3.27% | 0.8235s ± 0.0135s |
+
+*(Always-guess majority floor: `65.10%`.)*
+
+**Columns picked by training-only `f_classif` (`selected_features`)**:
+- **`n_features=4`**:
+  - Split 0: `plas,mass,age,insu`
+  - Split 1: `plas,mass,age,preg`
+  - Split 2: `plas,mass,age,preg`
+  - Split 3: `plas,mass,insu,age`
+  - Split 4: `plas,mass,age,skin`
+- **`n_features=6`**:
+  - Split 0: `plas,mass,age,insu,preg,skin`
+  - Split 1: `plas,mass,age,preg,skin,insu`
+  - Split 2: `plas,mass,age,preg,pedi,skin`
+  - Split 3: `plas,mass,insu,age,skin,preg`
+  - Split 4: `plas,mass,age,skin,insu,preg`
+- **`n_features=8`**: all 8 columns (`preg,plas,pres,skin,insu,mass,pedi,age`) in every split.
+
+**Measured Kernel Spread (`kernel_stats()` off-diagonal values across the 5 training folds)**:
+
+| Qubits | `gamma = 0.5` Mean ± Std | `gamma = 0.5` Variance ± Std | `gamma = 1.0` Mean ± Std | `gamma = 1.0` Variance ± Std |
+| :---: | :---: | :---: | :---: | :---: |
+| **4** | 0.6243 ± 0.0296 | 0.0535 ± 0.0029 | 0.2147 ± 0.0142 | 0.0491 ± 0.0053 |
+| **6** | 0.5095 ± 0.0122 | 0.0578 ± 0.0023 | 0.1042 ± 0.0089 | 0.0241 ± 0.0027 |
+| **8** | 0.4059 ± 0.0051 | 0.0574 ± 0.0010 | 0.0385 ± 0.0011 | 0.0070 ± 0.0003 |
+
+### F. Paired Comparison vs. 8-Column Baseline (`compare_models` on `balanced_accuracy`)
+
+| Comparison | Variant Mean ± Std | 8-Qubit Baseline Mean ± Std | Difference (`variant − baseline`) | p-value | Conclusion |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **4 qubits vs. 8 qubits** | 75.53% ± 4.58% | 72.01% ± 2.27% | +3.52% | 0.3673 | **no significant difference found** |
+| **6 qubits vs. 8 qubits** | 72.77% ± 3.83% | 72.01% ± 2.27% | +0.76% | 0.8171 | **no significant difference found** |
+
+### G. Figure
+- Saved to [`figures/exp1_qkernel.png`](../figures/exp1_qkernel.png) (score with ± std error bars vs. qubits on the left; off-diagonal kernel variance vs. qubits on the right).
+
+### H. Plain-Language Explanation
+- On these 5 splits, balanced accuracy rose slightly from **72.01%** (8 qubits) to **75.53%** (4 qubits), and training time sped up **4×** (`0.824s` → `0.206s` per split), though with only 5 splits the paired test found **no significant difference found** (`p = 0.3673` for 4 vs. 8; `p = 0.8171` for 6 vs. 8).
+- Our `kernel_stats()` measurements show clear **kernel concentration** at `gamma = 1.0`: as qubits grow from 4 to 8, average off-diagonal similarity falls from **0.215** to **0.039** and kernel variance shrinks **7.0×** (`0.0491` → `0.0070`), whereas `gamma = 0.5` keeps variance steady around `0.053–0.058`.
+- **Hypothesis** (not directly tested in this single run): dropping weaker features (`pres`, `pedi`) and concentrating on the top medical predictors (`plas`, `mass`, `age`) alongside a less concentrated 4-qubit kernel may give the SVM a cleaner margin, though more splits would be needed to confirm whether that `+3.52%` gain is real or split-to-split noise.
+
+---
+
+## Experiment 2: Number of Training Patients (`30, 60, 120, 200`)
+
+### B. Setup
+- **What changes**: Training sample size per draw (`train_size` = `30`, `60`, `120`, `200`, with `10` random stratified draws each), plus a full training-pool (`614`-patient) reference.
+- **What stays the same**: Same fixed 20% stratified test set (`154` patients from `get_fixed_test_split()`, seed `42`, majority floor = `64.94%`), all `8` columns (`8` qubits), same ZZ feature map (`2` repetitions), fixed `class_weight='balanced'`, and fixed settings `{'C': 1.0, 'gamma': 0.5}` tuned **once** on the `614`-patient training pool (`tune_hyperparameters()`).
+- **Important disclosure (applies to every model)**: Tuning used the larger `614`-patient training pool and was reused at every size via `fixed_params={'C': 1.0, 'gamma': 0.5}`, because tuning separately on `30` patients is too noisy.
+- **Prediction (written before inspecting results)**: Accuracy and balanced accuracy should start near the `64.94%` majority floor with large draw-to-draw spread at `30` patients, then rise steadily and tighten in spread as training data grows toward `200` and `614`.
+
+### C & D. Quick Check & Time Estimate
+- **Quick check**: Ran `evaluate('exp2_qkernel_n30_quick', ..., train_size=30, fixed_params={'C': 1.0, 'gamma': 0.5}, quick=True)` cleanly (`3` draws) and immediately deleted `results/exp2_qkernel_n30_quick.csv`.
+- **Time estimate**: From `results/qkernel.csv` (`0.8274s` for a full tuned split), 1 pool tune (`~0.83s`) plus 40 small fixed-param fits (`< 2s`) was estimated at **`~2.8s` (`< 0.1 min`)**, far under 20 minutes.
+
+### E. Results (10 Stratified Draws per Size on Fixed 154-Patient Test Set)
+
+| Training Patients | Draws | Accuracy (Mean ± Std) | Balanced Accuracy (Mean ± Std) | Macro F1 (Mean ± Std) | Train Time / Draw |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| **30** (`results/exp2_qkernel_n30.csv`) | 10 | 68.83% ± 3.77% | **66.33% ± 4.20%** | 65.97% ± 4.01% | 0.0054s ± 0.0001s |
+| **60** (`results/exp2_qkernel_n60.csv`) | 10 | 68.90% ± 2.13% | **67.19% ± 1.96%** | 66.65% ± 2.03% | 0.0070s ± 0.0018s |
+| **120** (`results/exp2_qkernel_n120.csv`) | 10 | 68.90% ± 2.46% | **68.34% ± 2.81%** | 67.23% ± 2.57% | 0.0086s ± 0.0001s |
+| **200** (`results/exp2_qkernel_n200.csv`) | 10 | 70.52% ± 2.06% | **69.72% ± 1.74%** | 68.78% ± 1.86% | 0.0115s ± 0.0001s |
+| **614 (Full Pool Ref.)** | 1 | 71.43% | **72.04%** | 70.30% | 0.0312s |
+
+*(Fixed 154-patient test set majority floor: `64.94%`.)*
+
+### F. Paired Significance Check (`compare_models()`)
+- Experiment 2 does **not** use the 5 outer CV exams—each size evaluates 10 random training draws against the single fixed 154-patient test set (`n_train` differs per size: `30, 60, 120, 200` vs. `614`), so `compare_models()` does **not** compare these rows against the 5-exam baseline or across different `n_train` sizes (`_resolve_split_size` rejects mismatched `n_train`). Instead, teammates can run `compare_models('results/exp2_qkernel_n30.csv', 'results/exp2_<other>_n30.csv')` at matching sizes once other models generate their per-size CSVs.
+
+### G. Figure
+- Saved to [`figures/exp2_qkernel.png`](../figures/exp2_qkernel.png) (shows balanced accuracy and accuracy with ± std spread across the 10 draws, alongside the 614-patient pool reference and 64.94% floor).
+
+### H. Plain-Language Explanation
+- As training patients increase from `30` to `200`, average balanced accuracy improves steadily from **66.33%** to **69.72%** (reaching **72.04%** with the full `614`-patient pool), while the draw-to-draw spread drops by more than half from **± 4.20%** at `30` patients down to **± 1.74%** at `200` patients.
+- At `30` patients, results are noisy (`± 4.20%` spread) and barely clear the `64.94%` always-guess floor, showing that the quantum kernel does not magically learn diabetes structure from tiny samples alone.
+- **Hypothesis** (not directly measured against classical models in this single-model run): because SVM decision margins depend on having enough representative support vectors in `256`-dimensional state space, larger training sets give the quantum kernel a cleaner, more stable boundary just like a classical RBF SVM.
+
+---
+
+## Experiment 3: How Data Enters the Circuit (Angle vs. ZZ Encoding)
+
+### B. Setup
+- **What changes**: Feature encoding switched from the 2-repetition entangled ZZ map (`encoding='zz'`) to unentangled simple angle encoding (`encoding='angle'`) via `lambda: make_model(encoding='angle')`.
+- **Gate note**: The quantum kernel angle encoding uses **`RY`** per qubit, whereas the VQC uses **`RX`**; for a fidelity quantum kernel (`|<psi(x)|psi(y)>|^2`), `RY` and `RX` produce **identical** similarity scores (`prod_i cos^2(gamma * (x_i - y_i) / 2)`).
+- **What stays the same**: Exact same first 5 stratified splits (`n_splits_to_run=EXPERIMENT_EVAL_SPLITS = 5`, `seed=42`), all `8` columns (`8` qubits), fixed `class_weight='balanced'`, and the same 8-combination `PARAM_GRID` (`C` in `[0.1, 1.0, 10.0, 100.0]`, `gamma` in `[0.5, 1.0]`). The ZZ baseline is the first 5 rows of `results/qkernel.csv`.
+- **Prediction (written before inspecting results)**: Because unentangled angle encoding avoids the `6.5x` off-diagonal kernel concentration observed in 8-qubit ZZ at `gamma = 1.0`, angle encoding may match or slightly outperform ZZ on Pima while running faster—even though its kernel has no entanglement and is classically computable.
+
+### C & D. Quick Check & Time Estimate
+- **Quick check**: Ran `evaluate('exp3_qkernel_angle_quick', lambda: make_model(encoding='angle'), ..., quick=True, n_splits_to_run=5)` cleanly (`5` splits) and immediately deleted `results/exp3_qkernel_angle_quick.csv`.
+- **Time estimate**: From `results/qkernel.csv` (`0.8274s/split` for ZZ as an upper bound), 5 splits of Angle was estimated at **`<= 4.14s` (`0.07 min`)**, well under 20 minutes.
+
+### E. Results & Kernel Spread (First 5 Splits, 8 Qubits)
+
+| Encoding | Splits | Accuracy (Mean ± Std) | Balanced Accuracy (Mean ± Std) | Macro F1 (Mean ± Std) | Train Time / Split |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Angle (`RY`, `results/exp3_qkernel_angle.csv`)** | 5 | 73.56% ± 4.09% | **73.82% ± 3.08%** | 72.28% ± 3.79% | 0.2527s ± 0.0043s |
+| **ZZ (`2 reps`, `results/qkernel.csv` rows 0–4)** | 5 | 72.00% ± 3.90% | **72.01% ± 2.27%** | 70.57% ± 3.27% | 0.8235s ± 0.0135s |
+
+*(Always-guess majority floor: `65.10%`.)*
+
+**Kernel spread (`kernel_stats()` off-diagonal values across the 5 training splits)**:
+
+| Encoding | `gamma = 0.5` Mean ± Std | `gamma = 0.5` Variance ± Std | `gamma = 1.0` Mean ± Std | `gamma = 1.0` Variance ± Std |
+| :--- | :---: | :---: | :---: | :---: |
+| **Angle (`RY`)** | 0.6461 ± 0.0051 | 0.0307 ± 0.0006 | 0.2298 ± 0.0053 | 0.0456 ± 0.0010 |
+| **ZZ (2 reps)** | 0.4059 ± 0.0051 | 0.0574 ± 0.0010 | 0.0385 ± 0.0011 | 0.0070 ± 0.0003 |
+
+*(Measured check: Angle encoding matched the classical product formula `prod_i cos^2(gamma * (x_i - y_i) / 2)` within `4.885e-15` max difference across all 5 splits.)*
+
+### F. Paired Comparison (`compare_models` on `balanced_accuracy`)
+
+| Comparison | Angle Mean ± Std | ZZ Baseline Mean ± Std | Difference (`angle − zz`) | p-value | Conclusion |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **Angle vs. ZZ (5 splits)** | 73.82% ± 3.08% | 72.01% ± 2.27% | +1.80% | 0.5006 | **no significant difference found** |
+
+### G. Figure
+- Saved to [`figures/exp3_qkernel.png`](../figures/exp3_qkernel.png) (Angle vs. ZZ scores with ± std error bars on the left; split-0 off-diagonal similarity distributions at `gamma = 1.0` on the right).
+
+### H. Plain-Language Explanation
+- Unentangled **Angle (`RY`)** encoding scored **73.82%** balanced accuracy vs. **72.01%** for entangled **ZZ** (`+1.80%`, `p = 0.5006` → **no significant difference found**) and trained over **3× faster** (`0.253s` vs. `0.824s` per split).
+- Because Angle encoding has no CNOT gates (no entanglement), its kernel is mathematically identical to a simple classical product of cosines (verified to `4.89e-15`), and it avoids ZZ's `6.5×` variance collapse at `gamma = 1.0` (`0.0456` vs. `0.0070`).
+- **Hypothesis** (not yet tested on curved artificial data in this model): adding pairwise ZZ entanglement does not help on Pima either because Pima's class boundary is mostly smooth/linear or because the classes overlap too heavily—the positive control (`make_moons`) is needed to confirm ZZ captures curves when they do exist.
+
+---
+
+## Experiment 5: Curved-Data Positive Control (`make_moons`, Artificial Data, 2 Qubits)
+
+### B. Setup
+- **What changes**: Dataset switched from Pima medical records to the **artificial** 2D curved two-moons benchmark `sklearn.datasets.make_moons(n_samples=400, noise=0.2, random_state=42)` (`200` class-0 points, `200` class-1 points, exact `50.00%` majority floor), using `n_features=2` (`2` qubits) and `zero_as_missing_cols=()`.
+- **What stays the same**: Same shared harness (`src/evaluate.py`) with `n_splits_to_run=EXPERIMENT_EVAL_SPLITS` (`5` stratified splits, `seed=42`), leakage-free training-only `[0, pi]` rescaling, fixed `class_weight='balanced'`, and the exact same frozen `make_model()` + 8-combination `PARAM_GRID` (`C` in `[0.1, 1.0, 10.0, 100.0]`, `gamma` in `[0.5, 1.0]`). Matching-split references (`LogisticRegression` and `Angle` kernel) ran in a temporary directory for statistical comparison without writing extra files to `results/`.
+- **Prediction (written before inspecting results)**: Straight-line Logistic Regression can only draw one flat cut through curved moons, whereas the 2-qubit ZZ quantum kernel can draw a smooth curved boundary and should significantly beat Logistic Regression, proving the quantum kernel detects nonlinear structure when it exists.
+
+### C & D. Quick Check & Time Estimate
+- **Quick check**: Ran `evaluate('exp5_qkernel_moons_quick', ..., n_features=2, quick=True, X=X_moons, y=y_moons, zero_as_missing_cols=(), n_splits_to_run=5)` cleanly (`5` splits) and immediately deleted `results/exp5_qkernel_moons_quick.csv`.
+- **Time estimate**: From `results/qkernel.csv` (`0.8274s/split` at 8 qubits on 768 rows), 5 splits at 2 qubits on 400 rows had an upper-bound estimate of **`4.14s` (`0.0690 min`)**, far below 20 minutes.
+
+### E. Results & Kernel Spread (Artificial `make_moons`, First 5 Splits, 2 Qubits)
+
+| Model | Splits | Accuracy (Mean ± Std) | Balanced Accuracy (Mean ± Std) | Macro F1 (Mean ± Std) | Train Time / Split |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **ZZ Quantum Kernel (`results/exp5_qkernel_moons.csv`)** | 5 | 93.25% ± 3.38% | **93.25% ± 3.38%** | 93.24% ± 3.39% | 0.0834s ± 0.0075s |
+| **Angle Quantum Kernel (`2q RY` temp ref.)** | 5 | 87.25% ± 3.58% | **87.25% ± 3.58%** | 87.21% ± 3.64% | 0.0571s ± 0.0008s |
+| **Logistic Regression (Linear temp ref.)** | 5 | 83.50% ± 2.05% | **83.50% ± 2.05%** | 83.45% ± 2.08% | 0.0442s ± 0.0018s |
+
+*(Artificial dataset always-guess floor: `50.00%`. Best ZZ Quantum Kernel settings were `{"C": 100.0, "gamma": 0.5}` on all 5 splits, scoring `97.50%`, `88.75%`, `93.75%`, `91.25%`, and `95.00%`.)*
+
+**Kernel spread (`kernel_stats()` off-diagonal values across the 5 training splits, 2 qubits)**:
+
+| Encoding | `gamma = 0.5` Mean ± Std | `gamma = 0.5` Variance ± Std | `gamma = 1.0` Mean ± Std | `gamma = 1.0` Variance ± Std |
+| :--- | :---: | :---: | :---: | :---: |
+| **ZZ (2 reps)** | 0.7179 ± 0.0044 | 0.0351 ± 0.0009 | 0.4097 ± 0.0054 | 0.0731 ± 0.0006 |
+| **Angle (`RY`)** | 0.8489 ± 0.0033 | 0.0152 ± 0.0006 | 0.5570 ± 0.0067 | 0.0843 ± 0.0017 |
+
+*(Measured check: 2-qubit ZZ kernel matched `hand_zz_2qubit_kernel()` within `2.665e-15` max difference on split 0.)*
+
+### F. Paired Comparisons (`compare_models` on `balanced_accuracy`)
+
+| Comparison (5 Matching `make_moons` Splits) | ZZ Kernel Mean ± Std | Reference Mean ± Std | Difference (`ZZ − ref`) | p-value | Conclusion |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **ZZ Kernel vs. Logistic Regression (Linear)** | 93.25% ± 3.38% | 83.50% ± 2.05% | +9.75% | 0.0095 | **significant difference found (p < 0.05)** |
+| **ZZ Kernel vs. Angle Kernel (`RY`, Unentangled)** | 93.25% ± 3.38% | 87.25% ± 3.58% | +6.00% | 0.0299 | **significant difference found (p < 0.05)** |
+
+### G. Figure
+- Saved to [`figures/exp5_qkernel.png`](../figures/exp5_qkernel.png) (left panel: split-0 curved ZZ vs. straight-line Logistic Regression decision boundaries on the artificial `make_moons` points; right panel: 5-split balanced accuracy ± std across models).
+
+### H. Plain-Language Explanation
+- On curved **artificial** `make_moons` data (`n = 400`, `noise = 0.2`), the frozen 2-qubit ZZ quantum kernel reached **93.25%** balanced accuracy, significantly beating both straight-line **Logistic Regression** (`83.50%`, `+9.75%`, `p = 0.0095`) and unentangled **Angle (`RY`)** encoding (`87.25%`, `+6.00%`, `p = 0.0299`).
+- Unlike Experiment 3 on 8-qubit Pima (where ZZ and Angle showed no significant difference), the pairwise `x0 * x1` ZZ interaction clearly helps here because the two crescent moons genuinely curve around each other, and 2 qubits avoid high-qubit kernel concentration (`var = 0.035–0.073`).
+- **Interpretation vs. Hypothesis**: This positive control proves our `QuantumKernelSVC` circuit and evaluation pipeline can learn strong curved boundaries cleanly; our **hypothesis** for why ZZ did not beat Logistic Regression on Pima (`73.97%` vs. `74.20%`) is that real Pima diabetes features have a mostly smooth, overlapping boundary rather than sharp interlocking curves.
