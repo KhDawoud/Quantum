@@ -30,7 +30,8 @@ Why the preprocessing steps happen in this exact order, learned strictly inside 
 | `scikit-learn` `LogisticRegression` | Hard rule (`scikit-learn` for classical baselines); fast, convex, matches `fit`/`predict`/`predict_proba`. |
 | `solver="lbfgs"`, default L2, `max_iter=1000` | Deterministic quasi-Newton solver for small tabular data; omitting deprecated `penalty` in `scikit-learn==1.9.1` keeps default L2 regularization with zero warnings, and `1000` iterations prevents non-convergence across all folds/sizes. |
 | `random_state=42` | Reproducibility hard rule (`RANDOM_SEED = 42`). |
-| `C` in `[0.01, 0.1, 1.0, 10.0]`, `class_weight` in `[None, "balanced"]` | `4 x 2 = 8` combinations (uses the full `<= 8` budget). Spans 4 orders of magnitude of regularization and lets inner balanced-accuracy tuning check whether balancing the 65/35 classes helps. |
+| `class_weight="balanced"` (fixed) | Matches the Nov 26 team decision across all four models (B, C, and D also fix balanced weighting). Upweights minority positives dynamically inside each fit (`n / (2 * class_count)`), roughly `0.77` for negative and `1.43` for positive on full Pima, instead of spending tuning budget on class weights. |
+| `C` in `[0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0, 30.0]` | `8` combinations (uses the full `<= 8` budget) across log-spaced inverse regularization strengths suited for `[0, pi]`-scaled inputs. |
 
 ---
 
@@ -47,16 +48,24 @@ Why the preprocessing steps happen in this exact order, learned strictly inside 
 
 ---
 
-## 4. Official Logistic Regression Results (`results/logreg.csv`, 5 splits, 8 features)
-
-> **Out of date (Nov 26):** these numbers come from the old 5-split run. Under the 25-split decision `results/logreg.csv` must be rerun with the default `evaluate()` before it goes into the main table.
+## 4. Official Logistic Regression Results (`results/logreg.csv`, 25 splits, 8 features)
 
 | Metric | Value (`mean ± std`) | Notes |
 |---|---|---|
 | Always-guess floor | `65.10%` | Guessing `tested_negative` for every patient (`500 / 768`) |
-| Accuracy | `74.47% ± 4.58%` | Beats the majority floor by +9.37 percentage points |
-| Balanced accuracy | `73.90% ± 3.63%` | Mean of sensitivity and specificity across both classes |
-| Macro F1 | `72.88% ± 4.31%` | Unweighted mean of class-0 and class-1 F1 scores |
-| Train time / split | `0.2388s ± 0.0192s` | Includes 3-fold `GridSearchCV` + refit on `[614, 8]` |
+| Accuracy | `75.05% ± 3.74%` | Beats the majority floor by +9.95 percentage points |
+| Balanced accuracy | `74.21% ± 3.77%` | Mean of sensitivity and specificity across both classes |
+| Macro F1 | `73.32% ± 3.86%` | Unweighted mean of class-0 and class-1 F1 scores |
+| Train time / split | `0.2266s ± 0.0053s` | Includes 3-fold `GridSearchCV` + refit on ~614 training patients |
 
-Inner 3-fold CV picked `class_weight="balanced"` on all 5 splits (`C=0.1` on 3 splits, `C=1.0` on 2 splits).
+Inner 3-fold CV selected `C=0.3` (7 splits), `C=0.1` (7 splits), `C=1.0` (6 splits), `C=0.03` (2 splits), `C=30.0` (2 splits), and `C=3.0` (1 split), all with fixed `class_weight="balanced"`.
+
+### Paired comparison vs. RBF SVM (`results/rbf_svm.csv`, 25 splits)
+
+Using `compare_models()` (Nadeau–Bengio corrected resampled paired t-test, `df = 24`):
+
+| Metric | LogReg | RBF SVM | Mean diff | `t` | `p` | Result |
+|---|---:|---:|---:|---:|---:|---|
+| Accuracy | `75.05%` | `74.76%` | `+0.29%` | `+0.1515` | `0.8809` | no significant difference found |
+| Balanced accuracy | `74.21%` | `74.99%` | `-0.79%` | `-0.4112` | `0.6846` | no significant difference found |
+| Macro F1 | `73.32%` | `73.47%` | `-0.15%` | `-0.0775` | `0.9389` | no significant difference found |

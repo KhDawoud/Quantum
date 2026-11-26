@@ -320,9 +320,8 @@ def test_evaluate_train_size_fixed_params_and_tune_on_pool(tmp_path):
     best_params = tune_hyperparameters(
         make_model, PARAM_GRID, X.iloc[pool_idx], y[pool_idx]
     )
-    assert set(best_params) == {"C", "class_weight"}
-    assert best_params["C"] in PARAM_GRID["C"]
-    assert best_params["class_weight"] in PARAM_GRID["class_weight"]
+    assert set(best_params) == set(PARAM_GRID)
+    assert all(best_params[key] in values for key, values in PARAM_GRID.items())
 
     fit_calls: list[dict[str, Any]] = []
     fixed = {"C": 1.0, "class_weight": "balanced"}

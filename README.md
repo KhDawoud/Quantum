@@ -21,6 +21,41 @@ python -m src.data               # Print dataset summary and verify [0, pi] scal
 pytest -v                        # Run data integrity and anti-leakage tests
 ```
 
+## Model B — RBF SVM
+
+```bash
+python -m tests.test_rbf_svm       # Synthetic smoke test; not benchmark results
+python -m pytest tests/test_rbf_svm.py -v
+python run_rbf_svm.py --quick     # Dev grid -> results/rbf_svm_quick.csv
+python run_rbf_svm.py             # All 8 settings -> results/rbf_svm.csv
+```
+
+The runner uses the shared `evaluate()` and `format_summary()` functions.
+The standard run explicitly uses **25 outer splits** and all eight settings,
+matching the Nov 26 decision on main. Quick mode uses five splits and two
+settings; it writes a separate development CSV. Both use balanced class weights.
+
+### Model B training-size experiment
+
+```bash
+python -m src.experiment_rbf
+```
+
+This runs **RBF SVM only**: tune once on the 614-patient training pool, then
+reuse those settings for 10 draws each of 30, 60, 120 and 200 training patients,
+with the same untouched 154-patient test set. It saves
+`results/exp2_trainsize_rbf.csv` (40 rows) and
+`figures/exp2_trainsize_rbf.png` (mean accuracy and sample standard deviation).
+The function is also available as `src.experiments.run_exp2_trainsize_rbf`.
+The combined four-model experiment remains a separate team deliverable.
+
+Model B requires NumPy, SciPy, pandas, scikit-learn, and Matplotlib; tests also
+need pytest. The pinned `requirements.txt` remains the canonical installation.
+The local tested versions are recorded in `notes/requirements-tested-B.txt`;
+this is not certification of a fresh install of all team dependencies.
+See `notes/DESIGN_B.md` for results and limitations, and `notes/AI_USE_B.md`
+for AI assistance provenance and validation history.
+
 ## Project Structure
 
 ```text

@@ -19,6 +19,8 @@ from src.model_logreg import PARAM_GRID, make_model
 def test_param_grid_budget_and_keys():
     assert PARAM_GRID
     assert all(len(values) > 0 for values in PARAM_GRID.values())
+    assert "class_weight" not in PARAM_GRID
+    assert PARAM_GRID == {"C": [0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0, 30.0]}
     n_combos = int(np.prod([len(values) for values in PARAM_GRID.values()]))
     assert 1 <= n_combos <= 8
     assert n_combos == 8
@@ -31,12 +33,44 @@ def test_make_model_defaults_and_overrides():
     assert model.random_state == 42
     assert model.solver == "lbfgs"
     assert model.max_iter == 1000
+    assert model.class_weight == "balanced"
 
-    overridden = make_model(C=0.5, class_weight="balanced")
+    overridden = make_model(C=0.5, class_weight=None)
     assert isinstance(overridden, LogisticRegression)
     assert overridden.C == 0.5
-    assert overridden.class_weight == "balanced"
+    assert overridden.class_weight is None
     assert overridden.random_state == 42
+
+
+def test_balanced_class_weighting_adapts_to_fit_labels():
+    rng = np.random.default_rng(42)
+    X_base = rng.normal(0.0, 1.0, size=(100, 4))
+
+    y_imb = np.array([0] * 70 + [1] * 30)
+    X_imb_raw = X_base.copy()
+    X_imb_raw[y_imb == 1, 0] += 0.8
+    X_imb = (
+        (X_imb_raw - X_imb_raw.min(axis=0))
+        / (X_imb_raw.max(axis=0) - X_imb_raw.min(axis=0))
+        * np.pi
+    )
+    bal_imb = make_model().fit(X_imb, y_imb)
+    unw_imb = make_model(class_weight=None).fit(X_imb, y_imb)
+    assert bal_imb.intercept_[0] > unw_imb.intercept_[0]
+    assert bal_imb.predict_proba(X_imb)[:, 1].mean() > unw_imb.predict_proba(X_imb)[:, 1].mean()
+
+    y_eq = np.array([0] * 50 + [1] * 50)
+    X_eq_raw = X_base.copy()
+    X_eq_raw[y_eq == 1, 0] += 0.8
+    X_eq = (
+        (X_eq_raw - X_eq_raw.min(axis=0))
+        / (X_eq_raw.max(axis=0) - X_eq_raw.min(axis=0))
+        * np.pi
+    )
+    bal_eq = make_model().fit(X_eq, y_eq)
+    unw_eq = make_model(class_weight=None).fit(X_eq, y_eq)
+    np.testing.assert_allclose(bal_eq.coef_, unw_eq.coef_, atol=1e-10)
+    np.testing.assert_allclose(bal_eq.intercept_, unw_eq.intercept_, atol=1e-10)
 
 
 def test_fit_predict_and_predict_proba_on_linearly_separable_data():
