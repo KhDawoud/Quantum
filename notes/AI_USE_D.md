@@ -75,3 +75,15 @@ Team decision: main table = 25 splits for all models; experiments = first 5 spli
 - `results/logreg.csv` and `results/vqc_zz.csv` are 5-split results and must be rerun for the main table; not rerun or edited here.
 - C's experiment runner on `feat/qkernel` still needs `n_splits_to_run=EXPERIMENT_EVAL_SPLITS` (not on main, not changed).
 - A note in DESIGN_D.md says "25 split with 8 combinations"; the team decision and PROJECT_CONTEXT say at most 4 combinations for the VQC. Left as written, flagged to the user.
+
+## Session 7: 2026-11-26: diagnostic, is the VQC underfitting?
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| Diagnostic | Ran a scratch script (deleted afterwards) on exam 0: preprocessing fitted on the study patients only, then ZZ VQC, angle VQC and balanced logistic regression (C = 0.3 and 1.0) trained on them. Reported loss per round, study-patient accuracy and balanced accuracy, and the share predicted diabetic. | ZZ exam balanced accuracy (0.584) matched exam 0 in `results/vqc_zz_25.csv`. Total run time 37 s. |
+| Notes | Added the "Diagnostic: is the VQC underfitting?" section to the end of `notes/DESIGN_D.md` (text supplied by the user, from the AI's report). | n/a |
+
+### Honest limits
+- One exam only; the causes listed are hypotheses, not proven.
+- The diagnostic printed exam-0 test scores; no design choice was changed because of them (disclosed in DESIGN_D.md).
+- The pasted section refers to a "dead-dials note" that does not exist in DESIGN_D.md, and quotes main-run figures (63.1% balanced accuracy, 6 min per exam) that I did not check against `results/vqc_zz_25.csv`.

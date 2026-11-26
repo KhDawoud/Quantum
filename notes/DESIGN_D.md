@@ -54,3 +54,34 @@ Prediction for experiment 6, written before running: the extra rotation will imp
 The use of a 5 split with 4 combinations ran faster than we thought so we're gonna change it to a 25 split with 4 combinations
 
 Decision, written before the 25-split run: the main VQC run uses 25 splits with 4 combinations (about 3 hours; 8 combinations would take about 6 hours). The VQC is therefore tuned less than the kernel and SVM, and the report says so. The first 5 rows of this run should match the earlier 5-split run (vqc_zz.csv), as a reproducibility check.
+
+## Diagnostic: is the VQC underfitting? (exam 0, 26 Nov 2026)
+
+**Why we ran it.** After the 25-split main run (balanced accuracy 63.1% +/- 4.7, accuracy 65.4% +/- 4.0, about 6 minutes per exam), the ZZ VQC scored about 10 points below logistic regression. We wanted to know whether it was underfitting (poor even on the patients it trained on) or overfitting (good on those but poor on new patients).
+
+**Setup.** Exam 0 only, 8 features, 614 study patients (34.9% diabetic), epochs 20 and lr 0.02 (the settings that won exam 0). Run as a scratch script, deleted afterwards. Nothing in src/, tests/ or results/ was changed. Reproduction check: the ZZ model's exam balanced accuracy (0.584) matched exam 0 in results/vqc_zz_25.csv.
+
+| Model | Loss, first to last | Study balanced acc. | Study acc. | Predicted diabetic | Exam balanced acc. |
+| --- | --- | --- | --- | --- | --- |
+| VQC, ZZ encoding | 0.675 to 0.638 | 0.604 | 0.655 | 30.0% | 0.584 |
+| VQC, angle encoding | 0.677 to 0.572 | 0.718 | 0.731 | 38.9% | 0.646 |
+| Logistic regression (balanced, C = 0.3) | n/a | 0.769 | 0.777 | 39.3% | 0.711 |
+
+Reference points: a coin flip has a loss of 0.693, and always saying 'healthy' scores 65.1% accuracy and 50% balanced accuracy.
+
+**What the numbers show (from Claude Code's report).**
+- The ZZ VQC underfits. Its loss barely moved from a coin flip and was still creeping down at round 20. On its own study patients it gets about the always-healthy accuracy, and its probabilities stay between 0.11 and 0.71. Its study and exam scores are close (0.604 and 0.584), which fits a model that has learned little and so has little to overfit.
+- Angle encoding learns much more with the same circuit and training (study balanced accuracy 0.718), so the encoding is the main difference between the two.
+- The angle VQC shows a modest gap between study and exam scores (0.718 against 0.646). This is one exam, so it's only a hint.
+- Logistic regression is higher on both, so the VQC is not short of data, and the data is not hard for a model that can fit it.
+
+**Hypotheses, not proven.**
+1. In the ZZ map, the pair angle x_i times x_(i+1) can reach about 9.9, more than a full turn, so very different patients may end up with similar states.
+2. 20 rounds at lr 0.02 may be too few for ZZ, though earlier sanity checks found longer training and a larger learning rate did not help much at 2 layers.
+3. One readout qubit and only 28 working dials (see the dead-dials note) may limit flexibility, which matches the earlier 20-patient memorization check.
+
+**Decisions.**
+- The main table keeps the planned ZZ run. It was fixed before any results, and we do not change the model because of its scores.
+- Experiment 3 (angle against ZZ) tests hypothesis 1. Experiment 4 (layers) tests hypothesis 3. Experiment 1 (fewer qubits means fewer pair products) gives a further check on hypothesis 1.
+- Disclosure: this diagnostic printed exam-0 exam scores for reference (ZZ 0.584, angle 0.646, logistic regression 0.711). No design choice was changed because of them. Predictions for experiments 3 and 1 are written after this diagnostic and say so.
+- If the team agrees, the angle VQC may be run on all 25 exams as an extra row, labelled 'added after the diagnostic'. The ZZ row stays as the planned main result.
