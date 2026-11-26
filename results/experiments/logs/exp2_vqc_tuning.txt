@@ -1,0 +1,7 @@
+Exp 2 tuning (once, on the training pool)
+  Pool patients      : 614 ; fixed test patients: 154
+  Grid               : {"lr": [0.02, 0.05], "epochs": [20, 40]}
+  Winning settings   : {"epochs": 40, "lr": 0.05}
+  Tuning time        : 297.2 s
+  Started            : 2026-11-27 00:25 +0200
+  Finished           : 2026-11-27 00:29 +0200

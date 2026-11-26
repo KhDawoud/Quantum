@@ -1,0 +1,10 @@
+Results for 'exp2_vqc_n120_10draws' (10 splits, 8 features, quick=False)
+  Always-guess floor : 65.10%
+  Accuracy           : 60.06% +/- 4.26%
+  Balanced accuracy  : 57.49% +/- 5.02%
+  Macro F1           : 57.05% +/- 4.88%
+  Train time / split : 8.2251s +/- 0.2104s
+  Saved CSV          : C:\Users\Lenovo\dev\Quantum Computing Competition\Quantum\results\experiments\exp2_vqc_n120_10draws.csv
+  Started            : 2026-11-27 00:31 +0200
+  Finished           : 2026-11-27 00:32 +0200
+  Winning settings   : ['{"epochs": 40, "lr": 0.05}', '{"epochs": 40, "lr": 0.05}', '{"epochs": 40, "lr": 0.05}', '{"epochs": 40, "lr": 0.05}', '{"epochs": 40, "lr": 0.05}', '{"epochs": 40, "lr": 0.05}', '{"epochs": 40, "lr": 0.05}', '{"epochs": 40, "lr": 0.05}', '{"epochs": 40, "lr": 0.05}', '{"epochs": 40, "lr": 0.05}']

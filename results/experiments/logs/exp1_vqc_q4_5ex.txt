@@ -1,0 +1,10 @@
+Results for 'exp1_vqc_q4_5ex' (5 splits, 4 features, quick=False)
+  Always-guess floor : 65.10%
+  Accuracy           : 66.66% +/- 3.07%
+  Balanced accuracy  : 64.55% +/- 3.28%
+  Macro F1           : 63.99% +/- 3.14%
+  Train time / split : 88.2684s +/- 5.8548s
+  Saved CSV          : C:\Users\Lenovo\dev\Quantum Computing Competition\Quantum\results\experiments\exp1_vqc_q4_5ex.csv
+  Started            : 2026-11-26 23:25 +0200
+  Finished           : 2026-11-26 23:33 +0200
+  Winning settings   : ['{"epochs": 20, "lr": 0.05}', '{"epochs": 20, "lr": 0.02}', '{"epochs": 40, "lr": 0.05}', '{"epochs": 20, "lr": 0.05}', '{"epochs": 40, "lr": 0.02}']
