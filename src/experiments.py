@@ -11,6 +11,10 @@ Experiments:
 
 from __future__ import annotations
 
+# Member B's standalone contribution. The all-model Exp 2 entry point below
+# remains separate until all four models are integrated.
+from src.experiment_rbf import run_exp2_trainsize_rbf
+
 
 def run_exp1_qubits() -> None:
     """Saves results/exp1_qubits.csv and figures/exp1_qubits.png."""
