@@ -33,11 +33,48 @@ Antigravity (Google Deepmind coding assistant) working inside this repository.
 | Official 25-split run & paired test | Regenerated `results/logreg.csv` on 25 splits via `.venv\Scripts\python.exe -m src.evaluate` and ran `compare_models()` against `results/rbf_svm.csv`. | Verified `75.05% +/- 3.74%` accuracy, `74.21% +/- 3.77%` balanced accuracy, `73.32% +/- 3.86%` macro F1, and `"no significant difference found"` (`p = 0.6846` on balanced accuracy). |
 | Notes | Updated `notes/DESIGN_A.md` with the fixed balanced-weighting rationale, official 25-split numbers, and LogReg vs. RBF SVM paired table. | Verified every reported metric and p-value directly against `results/logreg.csv` and tool output. |
 
+## Session 4: 2026-11-26 — Experiment 1 (Feature Count 4, 6, 8 — LogReg Only)
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| TDD tests (`tests/test_experiment_logreg.py`) | Wrote 2 tests checking `evaluate()` is called for `n_features in [4, 6, 8]` with `n_splits_to_run=EXPERIMENT_EVAL_SPLITS=5`, CSV/PNG outputs, valid `selected_features` counts, and `src.experiments` re-export. | Ran `.venv\Scripts\pytest.exe tests/test_experiment_logreg.py -v` before implementation and verified both failed with `ModuleNotFoundError`. |
+| Exp 1 LogReg runner (`src/experiment_logreg.py`, `src/experiments.py`) | Implemented `run_exp1_qubits_logreg()`, `plot_qubits_logreg()`, and `summarize_selected_features()`, plus 1-line export in `src/experiments.py` matching B's pattern. | Ran `.venv\Scripts\pytest.exe -v`: all 56 tests passed in 30.22s with zero warnings. |
+| Official Exp 1 LogReg run | Ran `.venv\Scripts\python.exe -m src.experiment_logreg` producing `results/exp1_qubits_logreg.csv` (15 rows) and `figures/exp1_qubits_logreg.png`. | Verified `k=8` rows match the first 5 splits of `results/logreg.csv` identically via `pd.testing.assert_frame_equal`, inspected `figures/exp1_qubits_logreg.png` visually, and recorded paired `compare_models()` p-values. |
+| Notes | Added Section 5 to `notes/DESIGN_A.md` with `k=4,6,8` results, `f_classif` column frequencies, paired p-values, and takeaway marked with hypothesis. | Cross-checked all numbers and feature counts against `results/exp1_qubits_logreg.csv`. |
+
+## Session 5: 2026-11-26 — Experiment 5 (`make_moons` Artificial Positive Control — LogReg Only)
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| TDD tests (`tests/test_experiment_logreg.py`) | Added 2 tests verifying `evaluate()` is called with `n_features=2`, `zero_as_missing_cols=()`, `n_splits_to_run=5`, `400` points, explicit `"artificial"`/`"make_moons"` dataset labelling, CSV/PNG output, and `src.experiments` export. | Ran `.venv\Scripts\pytest.exe tests/test_experiment_logreg.py -v` before implementation and confirmed the 2 new tests failed (`AttributeError` / `ImportError`). |
+| Exp 5 LogReg runner (`src/experiment_logreg.py`, `src/experiments.py`) | Implemented `load_moons()` (`n=400`, `noise=0.20`, `seed=42`), `run_exp5_moons_logreg()`, `plot_moons_logreg()` (Split-0 linear boundary + 5-split bars), and CLI `exp1`/`exp5`; re-exported `run_exp5_moons_logreg` in `src/experiments.py`. | Ran `.venv\Scripts\pytest.exe -v`: all 58 tests passed in 30.34s with zero warnings. |
+| Official Exp 5 LogReg run | Ran `.venv\Scripts\python.exe -m src.experiment_logreg exp5` saving `results/exp5_moons_logreg.csv` and `figures/exp5_moons_logreg.png`. | Verified `83.50% +/- 2.05%` accuracy (`50.00%` floor) in `results/exp5_moons_logreg.csv` and visually inspected both panels of `figures/exp5_moons_logreg.png`. |
+| Notes | Added Section 6 to `notes/DESIGN_A.md` documenting artificial-control settings, results, and the Build Guide caveat. | Cross-checked metrics and chosen `C` values against `results/exp5_moons_logreg.csv`. |
+
+## Session 6: 2026-11-26 — Aligning Experiment 1 with Team Protocol (`notes/EXPERIMENTS_A.md`)
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| Shared-file cleanup | Reverted the temporary import in `src/experiments.py` and deleted superseded `results/exp1_qubits_logreg.csv` & `figures/exp1_qubits_logreg.png`. | Verified `git diff -- src/experiments.py src/model_logreg.py src/evaluate.py src/data.py results/logreg.csv` is empty. |
+| Step 0 & TDD refactor (`tests/test_experiment_logreg.py`, `src/experiment_logreg.py`) | Refactored `run_exp1_qubits_logreg()` to save `results/exp1_logreg_q4.csv` and `results/exp1_logreg_q6.csv`, use the first 5 rows of `results/logreg.csv` as the `q8` baseline, and plot `figures/exp1_logreg.png`. | Verified TDD RED failure before edit, then ran `.venv\Scripts\pytest.exe -v` (all 56 tests passed in 30.49s with zero warnings). |
+| Quick check, estimate & real run | Ran `quick=True` on `n_features=4` and deleted its temp CSV; verified `~2.27s` estimate from `results/logreg.csv`; ran `python -m src.experiment_logreg exp1`. | Inspected `results/exp1_logreg_q4.csv`, `results/exp1_logreg_q6.csv`, and `figures/exp1_logreg.png` visually; verified `compare_models()` p-values (`0.6735`, `0.3301`). |
+| Notes | Created `notes/EXPERIMENTS_A.md` (recording honestly that Exp 1 ran before the prediction-first prompt) and updated `notes/DESIGN_A.md` Section 5. | Cross-checked every Step 0 symbol, CSV row, feature list, and p-value against tool output. |
+| Experiment 5 removal | Deleted `results/exp5_moons_logreg.csv`, `figures/exp5_moons_logreg.png`, and removed Experiment 5 code/test/section at Member A's request so only Experiment 1 (and upcoming Experiment 2) remain. | Verified all 55 tests pass in `.venv\Scripts\pytest.exe -v` and no `exp5` files remain in `git status`. |
+
+## Session 7: 2026-11-27 — Experiment 2 (Training Size 30, 60, 120, 200 — Logistic Regression)
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| Repo sync | Fetched `origin/main` (`056b00e..c8eea62`), checked `git diff --name-status` for zero conflicts with local/frozen files, and ran `git pull --ff-only`. | Verified `src/model_logreg.py`, `src/evaluate.py`, `src/data.py`, `src/experiments.py`, and `results/logreg.csv` had zero local diffs. |
+| Step A & B | Recorded Member A's verbatim prediction (`2026-11-27 07:14 +02:00`) and setup in `notes/EXPERIMENTS_A.md` before running any Exp 2 code or tests. | Verified prediction text and setup disclosure written first. |
+| TDD (`tests/test_experiment_logreg.py`, `src/experiment_logreg.py`) | Added `test_exp2_trainsize_logreg_tunes_once_and_saves_per_size_csvs`, confirmed TDD RED, then implemented `run_exp2_trainsize_logreg()`, `plot_exp2_logreg()`, and shared `_plot_metric_curve()`. | Verified TDD RED failure (`AttributeError`), then TDD GREEN (`2 passed in 15.22s`). |
+| Quick check, estimate & real run | Ran `quick=True` on `train_size=30` (deleted `exp2_logreg_quick_check.csv`), computed `< 2s` time estimate, and ran `python -m src.experiment_logreg exp2`. | Verified `tuned_params={'C': 0.1}`, inspected `exp2_logreg_n30/n60/n120/n200.csv` (10 rows each) and `figures/exp2_logreg.png` visually, and ran full `.venv\Scripts\pytest.exe -v` (all **75/75** tests passed in `36.18s`). |
+| Notes | Completed Experiment 2 Steps C–H in `notes/EXPERIMENTS_A.md` honestly comparing results against Member A's pre-run prediction. | Cross-checked all means, SDs, min–max ranges, and floor (`64.94%`) directly against CSVs and tool output. |
+
 ### Adapted sources (also cited in code comments)
 - `scikit-learn` `LogisticRegression` API documentation (`https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html`) for solver, default L2 behavior in scikit-learn 1.9.1, and `class_weight='balanced'`.
 - `scikit-learn` cross-validation / `Pipeline` / `GridSearchCV` documentation (`https://scikit-learn.org/stable/modules/cross_validation.html`).
 - Nadeau, C., & Bengio, Y. (2003). *Inference for the Generalization Error*, Machine Learning, 52(3), 239–281 (corrected resampled paired t-test formula).
 
 ### Human review still needed
-- Member A should review the updated `src/model_logreg.py` and `notes/DESIGN_A.md` (including why `class_weight="balanced"` is fixed across all 4 models and what the LogReg vs. RBF SVM tie means).
-- Next steps for Person A: commit and push these updates on `main`, then build Experiments 1 & 5 in `src/experiments.py` and `notebooks/main.ipynb`.
+- Member A should review `notes/EXPERIMENTS_A.md`, `figures/exp2_logreg.png`, and commit Experiment 1 & Experiment 2 files on `main`. Next team steps: compile the combined 4-model tables/charts, `notebooks/main.ipynb`, report, and slides.

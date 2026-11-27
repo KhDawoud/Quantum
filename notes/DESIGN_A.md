@@ -1,7 +1,7 @@
 # DESIGN_A: design choices for Person A
 
-Scope: `src/data.py` (preprocessing & feature ranking), `src/model_logreg.py` (classical linear baseline), and `src/evaluate.py` (shared CV harness & Nadeau–Bengio significance test).
-Experiments 1 & 5 and `notebooks/main.ipynb` notes will be added next as they are built.
+Scope: `src/data.py` (preprocessing & feature ranking), `src/model_logreg.py` (classical linear baseline), `src/evaluate.py` (shared CV harness & Nadeau–Bengio significance test), and `src/experiment_logreg.py` (Person A's Experiment 1 runner).
+Detailed Experiment 1 & Experiment 2 protocol logs live in `notes/EXPERIMENTS_A.md`; `notebooks/main.ipynb` notes will be added when built.
 
 ---
 
@@ -69,3 +69,17 @@ Using `compare_models()` (Nadeau–Bengio corrected resampled paired t-test, `df
 | Accuracy | `75.05%` | `74.76%` | `+0.29%` | `+0.1515` | `0.8809` | no significant difference found |
 | Balanced accuracy | `74.21%` | `74.99%` | `-0.79%` | `-0.4112` | `0.6846` | no significant difference found |
 | Macro F1 | `73.32%` | `73.47%` | `-0.15%` | `-0.0775` | `0.9389` | no significant difference found |
+
+---
+
+## 5. Experiment 1: Number of Features / Qubits (`src/experiment_logreg.py`, LogReg Contribution Only)
+
+> **Scope note:** Covers Person A's Logistic Regression runs (`results/exp1_logreg_q4.csv`, `results/exp1_logreg_q6.csv`, `figures/exp1_logreg.png`, and `notes/EXPERIMENTS_A.md`) across the first 5 stratified splits (`EXPERIMENT_EVAL_SPLITS = 5`), using the first 5 rows of `results/logreg.csv` as the `8`-column baseline.
+
+| Variant | Accuracy (`mean ± std`) | Balanced Acc (`mean ± std`) | Macro F1 (`mean ± std`) | Time / split |
+|---|---:|---:|---:|---:|
+| `q4` (`4` cols) | `73.42% ± 5.90%` | `72.83% ± 5.21%` | `71.79% ± 5.73%` | `0.2428s ± 0.0216s` |
+| `q6` (`6` cols) | `73.30% ± 4.37%` | `72.48% ± 3.23%` | `71.58% ± 3.99%` | `0.2473s ± 0.0170s` |
+| `q8` (`results/logreg.csv[:5]`) | `74.60% ± 4.82%` | `74.00% ± 3.83%` | `73.00% ± 4.55%` | `0.2287s ± 0.0047s` |
+
+See `notes/EXPERIMENTS_A.md` for the exact per-split `selected_features` table, `compare_models()` p-values on `balanced_accuracy` (`q4 vs q8`: `p = 0.6735`, `q6 vs q8`: `p = 0.3301`, `"no significant difference found"`), and plain-language notes.
