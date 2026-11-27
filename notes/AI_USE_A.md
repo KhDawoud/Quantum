@@ -71,10 +71,18 @@ Antigravity (Google Deepmind coding assistant) working inside this repository.
 | Quick check, estimate & real run | Ran `quick=True` on `train_size=30` (deleted `exp2_logreg_quick_check.csv`), computed `< 2s` time estimate, and ran `python -m src.experiment_logreg exp2`. | Verified `tuned_params={'C': 0.1}`, inspected `exp2_logreg_n30/n60/n120/n200.csv` (10 rows each) and `figures/exp2_logreg.png` visually, and ran full `.venv\Scripts\pytest.exe -v` (all **75/75** tests passed in `36.18s`). |
 | Notes | Completed Experiment 2 Steps C–H in `notes/EXPERIMENTS_A.md` honestly comparing results against Member A's pre-run prediction. | Cross-checked all means, SDs, min–max ranges, and floor (`64.94%`) directly against CSVs and tool output. |
 
+## Session 8: 2026-11-27 — Combined Team Benchmark Notebook (`notebooks/main.ipynb`) & Combined Figures
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| CSV & schema audit | Audited all pulled 25-split CSVs (`logreg`, `rbf_svm`, `qkernel`, `qkernel_angle`, `vqc_zz_25`, `vqc_angle_25`) and per-experiment CSVs (`exp1`/`2`/`3`/`5`) across Members A, B, C, and D before writing notebook cells. | Verified row counts (`25`, `5`, `10`), `compare_models()` paired p-values, fixed `154`-patient `64.94%` test floor, and 100% identical `selected_features` across A, C, and D in Exp 1. |
+| Build `notebooks/main.ipynb` | Created `notebooks/main.ipynb` (22 cells) loading all official CSVs, running paired Nadeau–Bengio tests, computing `kernel_stats()` spread (via `compute_exp1_kernel_spread` / `compute_exp3_kernel_spread`), verifying `make_moons` positive control references in a temporary directory, and running an end-to-end `quick=True` contract smoke check inside `tempfile.TemporaryDirectory()`. | Auto-detects RBF SVM Exp 1 CSVs if added later; confirmed zero writes to `results/` or frozen `src/` files; fixed legend placements and switched from `"Agg"` `plt.show()` warnings to clean inline `display(Image(...))`. |
+| Execute & inspect figures | Executed `jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.kernel_name=python3 notebooks/main.ipynb` cleanly (`0` errors, `0` warnings, `6` inline PNGs embedded). | Visually inspected all 5 newly generated combined PNGs (`figures/main_comparison.png`, `figures/exp1_qubits.png`, `figures/exp1_kernel_spread.png`, `figures/exp2_trainsize.png`, `figures/exp3_encoding.png`) and verified all `pytest` tests pass. |
+
 ### Adapted sources (also cited in code comments)
 - `scikit-learn` `LogisticRegression` API documentation (`https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html`) for solver, default L2 behavior in scikit-learn 1.9.1, and `class_weight='balanced'`.
 - `scikit-learn` cross-validation / `Pipeline` / `GridSearchCV` documentation (`https://scikit-learn.org/stable/modules/cross_validation.html`).
 - Nadeau, C., & Bengio, Y. (2003). *Inference for the Generalization Error*, Machine Learning, 52(3), 239–281 (corrected resampled paired t-test formula).
 
 ### Human review still needed
-- Member A should review `notes/EXPERIMENTS_A.md`, `figures/exp2_logreg.png`, and commit Experiment 1 & Experiment 2 files on `main`. Next team steps: compile the combined 4-model tables/charts, `notebooks/main.ipynb`, report, and slides.
+- Member A should review `notebooks/main.ipynb` and the 5 combined charts in `figures/`, then commit and push them on `main`. Remaining team deliverables: report sections (`Question and dataset`, half of `Approach`, Exp 1 write-up), Slide 1, and checking with Member B about `exp1_rbf_svm_q4/q6.csv`.
