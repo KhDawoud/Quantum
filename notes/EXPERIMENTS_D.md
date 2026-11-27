@@ -162,3 +162,10 @@ More training patients helped the ZZ VQC: about +6 points of balanced accuracy f
 - One fixed test set of 154 patients; a different test set could shift every number.
 - Size and number of dial updates change together (see above).
 - The settings were tuned on 614 patients, then used for groups of 30-200; settings that suit 614 patients may not suit 30.
+
+"On balanced accuracy over 25 exams, the planned ZZ VQC scored 63.1%, 11.1 points below logistic regression (74.2%, p = 0.0002). Switching the circuit's encoding to simple angle encoding, a variant we added after experiment 3, raised the VQC to 70.6%, still 3.6 points below logistic regression (p = 0.011)."
+
+Two honest caveats to include:
+
+The VQC was tuned over 4 combinations of settings, and the other models over up to 8, so it was tuned somewhat less.
+The comparison covers this one dataset and these settings. It doesn't show that quantum models are generally worse.
