@@ -754,13 +754,108 @@ def report_exp6() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# experiment 6, run C (added after seeing results): chain wiring on Pima
+# --------------------------------------------------------------------------- #
+EXP6C_NAME = "exp6_pima_ranges11"
+MAIN_LOGREG = ROOT / "results" / "logreg.csv"
+
+
+def _exp6c_factory():
+    return make_model(encoding="zz", cable_ranges=[1, 1])
+
+
+def run_exp6c(quick: bool) -> None:
+    """Pima, ZZ, 8 columns, 2 layers, PARAM_GRID, first 5 exams; only cable_ranges changes."""
+    _run(
+        EXP6C_NAME,
+        _exp6c_factory,
+        quick=quick,
+        command="python -m src.run_exp_d exp6c",
+        n_features=8,
+        n_splits_to_run=EXPERIMENT_EVAL_SPLITS,
+        manifest={
+            "experiment": "6 run C (chain wiring, Pima; added after seeing results)",
+            "changed": "cable_ranges=[1, 1]: StronglyEntanglingLayers ranges (1, 2) -> (1, 1) "
+                       "(layer 2 CNOTs i -> i+1 instead of i -> i+2); live dials 28 -> 38 of 48",
+            "same": "ZZ encoding, 2 layers, PARAM_GRID, 8 columns, read qubit 0, first 5 exams, "
+                    "seed 42, evaluate() defaults as the main run",
+            "exams": "first 5 exams (splits 0-4)",
+            "columns": "8",
+            "encoding": "zz",
+            "layers": "2 (ranges 1, 1)",
+            "tuning": "4 combinations per exam (3-fold inner GridSearchCV)",
+            "baseline": "first 5 rows of results/vqc_zz_25.csv (ZZ) and of results/logreg.csv, "
+                        "in memory",
+        },
+    )
+
+
+def report_exp6c() -> None:
+    from sklearn.metrics import balanced_accuracy_score
+
+    from src.data import load_pima
+    from src.evaluate import ZERO_AS_MISSING_COLS, _build_pipeline, get_splits
+
+    c = pd.read_csv(EXP_DIR / f"{EXP6C_NAME}.csv")
+    zz = _baseline_first5()
+    lr = pd.read_csv(MAIN_LOGREG).head(EXPERIMENT_EVAL_SPLITS)
+    for label, d in (("main ZZ VQC", zz), ("logistic regression", lr)):
+        same = (d["split"].tolist() == c["split"].tolist()
+                and d["n_train"].tolist() == c["n_train"].tolist()
+                and d["n_test"].tolist() == c["n_test"].tolist())
+        print(f"split ids / sizes match {label}: {same}  {d['split'].tolist()}")
+
+    print("\nMean +/- spread (balanced accuracy, 5 exams):")
+    for label, d in (("main ZZ VQC (first 5)", zz), ("logistic regression (first 5)", lr),
+                     ("run C (ranges 1,1)", c)):
+        ba = d["balanced_accuracy"]
+        print(f"  {label:30s} {ba.mean():.4f} +/- {ba.std(ddof=1):.4f}   "
+              f"time/exam {d['train_time_sec'].mean():.1f} s +/- {d['train_time_sec'].std(ddof=1):.1f}")
+
+    rows = []
+    for label, other in (("main ZZ VQC (first 5)", zz), ("logistic regression (first 5)", lr)):
+        res = compare_models(c, other, metric="balanced_accuracy")
+        rows.append({"model_a": EXP6C_NAME, "model_b": label, "mean_a": res["mean_a"],
+                     "std_a": float(c["balanced_accuracy"].std(ddof=1)), "mean_b": res["mean_b"],
+                     "std_b": float(other["balanced_accuracy"].std(ddof=1)),
+                     "mean_diff_a_minus_b": res["mean_diff"], "t_stat": res["t_stat"],
+                     "df": res["df"], "p_value": res["p_value"], "conclusion": res["conclusion"]})
+    table = pd.DataFrame(rows)
+    out = EXP_DIR / "exp6_pima_ranges11_comparison.csv"
+    _refuse_if_exists(out)
+    table.to_csv(out, index=False)
+    print()
+    with pd.option_context("display.width", 250, "display.max_colwidth", 60):
+        print(table.drop(columns=["model_a"]).round(4).to_string(index=False))
+
+    print("\nPer exam (balanced accuracy, winning settings, time):")
+    print(pd.DataFrame({"exam": c["split"], "main_zz": zz["balanced_accuracy"].round(4),
+                        "run_C": c["balanced_accuracy"].round(4), "C_settings": c["best_params"],
+                        "C_time_s": c["train_time_sec"].round(0)}).to_string(index=False))
+
+    # Exam 0: rebuild the winning model, check the test score, score its training patients.
+    X, y = load_pima()
+    y = np.asarray(y)
+    train_idx, test_idx = get_splits(X, y)[0]
+    params = json.loads(c["best_params"].iloc[0])
+    pipe = _build_pipeline(_exp6c_factory, 8, ZERO_AS_MISSING_COLS)
+    pipe.set_params(**{f"clf__{k}": v for k, v in params.items()})
+    pipe.fit(X.iloc[train_idx], y[train_idx])
+    train_ba = balanced_accuracy_score(y[train_idx], pipe.predict(X.iloc[train_idx]))
+    test_ba = balanced_accuracy_score(y[test_idx], pipe.predict(X.iloc[test_idx]))
+    saved = float(c["balanced_accuracy"].iloc[0])
+    print(f"\nExam 0 run C, settings {params}: training patients {train_ba:.4f} | "
+          f"test {test_ba:.4f} (saved {saved:.4f}, match: {abs(test_ba - saved) < 1e-12})")
+
+
+# --------------------------------------------------------------------------- #
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("task", choices=["exp3", "exp3-report", "exp1", "exp1-dials",
                                          "exp1-report", "exp2", "exp2-report", "exp5-refs",
                                          "exp5-vqc", "exp5-vqc-report", "exp6",
-                                         "exp6-report"])
+                                         "exp6-report", "exp6c", "exp6c-report"])
     parser.add_argument("--enc", choices=["zz", "angle"], help="encoding for exp5-vqc")
     parser.add_argument("--run", choices=sorted(EXP6), help="exp6 run: A or B")
     parser.add_argument("--quick", action="store_true")
@@ -790,6 +885,10 @@ def main() -> None:
         run_exp6(args.run, args.quick)
     elif args.task == "exp6-report":
         report_exp6()
+    elif args.task == "exp6c":
+        run_exp6c(args.quick)
+    elif args.task == "exp6c-report":
+        report_exp6c()
 
 
 if __name__ == "__main__":
