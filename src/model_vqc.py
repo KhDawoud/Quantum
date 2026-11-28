@@ -70,11 +70,27 @@ def angle_feature_map(x, n_qubits: int) -> None:
     qml.AngleEmbedding(x, wires=range(n_qubits), rotation="X")
 
 
-def build_qnode(n_qubits: int, encoding: str, final_rotation: bool = False):
+def _sel_kwargs(cable_ranges) -> dict:
+    """Extra keyword arguments for qml.StronglyEntanglingLayers.
+
+    ``cable_ranges`` (experiment 6, run C) is passed as the template's ``ranges``
+    argument: one integer per layer = the distance between the two wires of each CNOT
+    in that layer (CNOT(i, i + r), wrapping around). None passes NOTHING, so the
+    library default is used and the circuit is exactly the original one; in
+    PennyLane 0.45.1 that default is r = (l % (n_wires - 1)) + 1 for layer l, e.g.
+    (1, 2) for 2 layers on 8 wires. Docs (ranges argument, version 0.45.1):
+    https://docs.pennylane.ai/en/stable/code/api/pennylane.StronglyEntanglingLayers.html
+    """
+    return {} if cable_ranges is None else {"ranges": tuple(int(r) for r in cable_ranges)}
+
+
+def build_qnode(n_qubits: int, encoding: str, final_rotation: bool = False,
+                cable_ranges=None):
     """Return ``circuit(weights, x) -> <Z_0>`` for a batch ``x`` of shape (B, n_qubits).
 
     With ``final_rotation=True`` the signature is ``circuit(weights, x, final_weights)``
     and one extra trainable ``qml.Rot`` acts on wire 0 just before the measurement.
+    ``cable_ranges`` sets the CNOT ranges of the trainable layers (None = default).
 
     Batching trick (PennyLane "parameter broadcasting"): because ``x[:, i]`` is a whole
     vector of angles, ONE circuit execution evaluates every patient in the mini-batch.
@@ -84,6 +100,7 @@ def build_qnode(n_qubits: int, encoding: str, final_rotation: bool = False):
     if encoding not in ("zz", "angle"):
         raise ValueError(f"encoding must be 'zz' or 'angle', got {encoding!r}")
     dev = qml.device("default.qubit", wires=n_qubits)
+    sel_kwargs = _sel_kwargs(cable_ranges)
 
     if not final_rotation:
         # Default circuit: unchanged from before the final_rotation option existed.
@@ -93,7 +110,7 @@ def build_qnode(n_qubits: int, encoding: str, final_rotation: bool = False):
                 zz_feature_map(x, n_qubits)
             else:
                 angle_feature_map(x, n_qubits)
-            qml.StronglyEntanglingLayers(weights, wires=range(n_qubits))
+            qml.StronglyEntanglingLayers(weights, wires=range(n_qubits), **sel_kwargs)
             return qml.expval(qml.PauliZ(0))
 
         return circuit
@@ -104,7 +121,7 @@ def build_qnode(n_qubits: int, encoding: str, final_rotation: bool = False):
             zz_feature_map(x, n_qubits)
         else:
             angle_feature_map(x, n_qubits)
-        qml.StronglyEntanglingLayers(weights, wires=range(n_qubits))
+        qml.StronglyEntanglingLayers(weights, wires=range(n_qubits), **sel_kwargs)
         # Experiment 6: one extra general single-qubit rotation on the readout qubit.
         # qml.Rot(phi, theta, omega) = RZ(omega) RY(theta) RZ(phi), see PennyLane docs:
         # https://docs.pennylane.ai/en/stable/code/api/pennylane.Rot.html
@@ -130,6 +147,9 @@ class VQCClassifier(BaseEstimator, ClassifierMixin):
         final_rotation: experiment 6 option (default False = the original model).
             If True, one extra trainable ``qml.Rot`` (3 angles) on wire 0 after the
             StronglyEntanglingLayers, trained together with the main weights.
+        cable_ranges: experiment 6 run C option (default None = library default
+            ranges = the original model). One int per layer, passed as the
+            ``ranges`` argument of qml.StronglyEntanglingLayers (CNOT distance).
 
     Attributes after fit:
         weights_: trained dials, shape (n_layers, n_qubits, 3).
@@ -148,6 +168,7 @@ class VQCClassifier(BaseEstimator, ClassifierMixin):
         batch_size: int = 32,
         random_state: int = RANDOM_SEED,
         final_rotation: bool = False,
+        cable_ranges: list[int] | None = None,
     ) -> None:
         self.encoding = encoding
         self.n_layers = n_layers
@@ -156,6 +177,7 @@ class VQCClassifier(BaseEstimator, ClassifierMixin):
         self.batch_size = batch_size
         self.random_state = random_state
         self.final_rotation = final_rotation
+        self.cable_ranges = cable_ranges  # stored as given (scikit-learn clone rule)
 
     # -- helpers ----------------------------------------------------------- #
     @staticmethod
@@ -193,7 +215,8 @@ class VQCClassifier(BaseEstimator, ClassifierMixin):
         self.class_weights_ = n / (2.0 * counts)
         sample_w = self.class_weights_[y01.astype(int)]
 
-        circuit = build_qnode(n_qubits, self.encoding, final_rotation=self.final_rotation)
+        circuit = build_qnode(n_qubits, self.encoding, final_rotation=self.final_rotation,
+                              cable_ranges=self.cable_ranges)
         rng = np.random.default_rng(self.random_state)
         shape = qml.StronglyEntanglingLayers.shape(n_layers=self.n_layers, n_wires=n_qubits)
         # Small random start (like the PennyLane variational-classifier demo's 0.01*randn).
@@ -242,7 +265,8 @@ class VQCClassifier(BaseEstimator, ClassifierMixin):
         if X.shape[1] != self.n_qubits_:
             raise ValueError(f"Expected {self.n_qubits_} columns, got {X.shape[1]}")
         # Rebuilt (cheap) instead of stored, so fitted models stay picklable for joblib.
-        circuit = build_qnode(self.n_qubits_, self.encoding, final_rotation=self.final_rotation)
+        circuit = build_qnode(self.n_qubits_, self.encoding, final_rotation=self.final_rotation,
+                              cable_ranges=self.cable_ranges)
         w = pnp.array(self.weights_, requires_grad=False)
         if self.final_rotation:
             check_is_fitted(self, ["final_weights_"])

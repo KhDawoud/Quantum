@@ -210,6 +210,67 @@ def test_final_rotation_trains_changes_output_and_pickles():
     assert clone(on).get_params()["final_rotation"] is True
 
 
+# --------------------------------------------------------------------------- #
+# Experiment 6 run C: cable_ranges option (StronglyEntanglingLayers ranges)
+# --------------------------------------------------------------------------- #
+# Angle-encoding reference, same setup as REF_ZZ_* above; recorded with code whose
+# default path is bit-identical to commit 4a7f922 (checked on the recording machine).
+REF_ANGLE_WEIGHTS = np.array([
+    0.3074289788251647, -0.365839017689016, 0.14219168858870546,
+    0.1528301470535628, 0.02412907464489968, 0.00489080719348956,
+    0.30070578099493867, -0.30430616972858193, 0.10057729899171686,
+    -0.15261013231873496, -0.17178905385276963, 0.07777919348378629,
+    0.13834442404618102, -0.14042239374948146, 0.04675093418198397,
+    -0.0859292463015475, 0.03687507837909557, -0.0958882600976022,
+]).reshape(2, 3, 3)
+REF_ANGLE_P1_FIRST5 = np.array([0.3536191503055015, 0.6101501112776894, 0.6426989159605867,
+                                0.7559863761029436, 0.5506475732379159])
+REF_ANGLE_LOSS = [0.8440647093817072, 0.7869993333835412, 0.7552191997021515]
+REFS = {"zz": (REF_ZZ_WEIGHTS, REF_ZZ_P1_FIRST5, REF_ZZ_LOSS),
+        "angle": (REF_ANGLE_WEIGHTS, REF_ANGLE_P1_FIRST5, REF_ANGLE_LOSS)}
+
+
+@pytest.mark.parametrize("encoding", ["zz", "angle"])
+def test_cable_ranges_off_reproduces_original_model(encoding):
+    X, y = fake_data(n=40, n_features=3, seed=5)
+    default = make_model(encoding=encoding, epochs=3, lr=0.05).fit(X, y)
+    explicit = make_model(encoding=encoding, epochs=3, lr=0.05, cable_ranges=None).fit(X, y)
+    np.testing.assert_array_equal(default.weights_, explicit.weights_)
+    np.testing.assert_array_equal(default.predict_proba(X), explicit.predict_proba(X))
+    assert default.loss_history_ == explicit.loss_history_
+    ref_w, ref_p1, ref_loss = REFS[encoding]
+    np.testing.assert_allclose(default.weights_, ref_w, rtol=0, atol=1e-12)
+    np.testing.assert_allclose(default.predict_proba(X)[:5, 1], ref_p1, rtol=0, atol=1e-12)
+    np.testing.assert_allclose(default.loss_history_, ref_loss, rtol=0, atol=1e-12)
+
+
+def test_cable_ranges_11_runs_changes_output_and_pickles():
+    import pickle
+
+    X, y = fake_data(n=40, n_features=3, seed=5)  # 3 wires: default ranges are (1, 2)
+    on = make_model(epochs=3, lr=0.05, cable_ranges=[1, 1]).fit(X, y)
+    off = make_model(epochs=3, lr=0.05).fit(X, y)
+    assert on.weights_.shape == off.weights_.shape
+    assert len(on.loss_history_) == 3
+    assert not np.allclose(on.predict_proba(X), off.predict_proba(X))
+    proba = on.predict_proba(X)
+    assert np.all((proba >= 0) & (proba <= 1))
+    restored = pickle.loads(pickle.dumps(on))
+    np.testing.assert_array_equal(restored.predict_proba(X), proba)
+    assert clone(on).get_params()["cable_ranges"] == [1, 1]
+
+
+def test_cable_ranges_reach_the_template():
+    """The option must really set the CNOT ranges (1, 1) instead of the default (1, 2)."""
+    n = 3
+    w = np.zeros(qml.StronglyEntanglingLayers.shape(2, n))
+    x = np.full((1, n), 0.5)
+    for ranges, expected in ((None, (1, 2)), ([1, 1], (1, 1))):
+        tape = qml.workflow.construct_tape(build_qnode(n, "angle", cable_ranges=ranges))(w, x)
+        sel = [op for op in tape.operations if isinstance(op, qml.StronglyEntanglingLayers)]
+        assert sel[0].hyperparameters["ranges"] == expected
+
+
 @pytest.mark.parametrize("encoding", ["zz", "angle"])
 def test_autograd_gradient_matches_finite_differences(encoding):
     """Training only works if the backprop gradient is right: compare with (f(w+h)-f(w-h))/2h."""
