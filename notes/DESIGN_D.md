@@ -85,3 +85,20 @@ Reference points: a coin flip has a loss of 0.693, and always saying 'healthy' s
 - Experiment 3 (angle against ZZ) tests hypothesis 1. Experiment 4 (layers) tests hypothesis 3. Experiment 1 (fewer qubits means fewer pair products) gives a further check on hypothesis 1.
 - Disclosure: this diagnostic printed exam-0 exam scores for reference (ZZ 0.584, angle 0.646, logistic regression 0.711). No design choice was changed because of them. Predictions for experiments 3 and 1 are written after this diagnostic and say so.
 - If the team agrees, the angle VQC may be run on all 25 exams as an extra row, labelled 'added after the diagnostic'. The ZZ row stays as the planned main result.
+
+### Addendum: pair-angle check (26 Nov 2026, exam 0, scratch script, deleted)
+
+Question: is the ZZ VQC's weakness caused by pair angles wrapping past a full turn, or by the circuit being jumpier than the angle encoding?
+
+Results (614 study patients, 8 features, preprocessing fitted on them only):
+- Pair angle x_i * x_(i+1) above 2 pi (6.283): 0.9% of all pair angles; 5.7% of patients have at least one. Above pi: 10.4% of pair angles; 38.6% of patients have at least one. Median 0.89, 90th percentile 3.20, maximum 9.87.
+- Sensitivity to a 0.1 nudge of one input column (mean change in <Z0>, 20 random dial draws): ZZ 0.00530, angle 0.00530, ratio 1.00 (range 0.85 to 1.16; ZZ larger in 8 of 20 draws).
+- Caveat: run at small random starting dials (mean |<Z0>| about 0.05), so it says nothing about trained dials or about how well either encoding separates the classes.
+
+Conclusion: hypothesis 1 (wrap-around of the pair angles) is not supported as the main cause, because it affects few patients. The jumpiness idea is not supported either.
+
+Still open (hypotheses): a flat start to training (the loss barely left 0.693), too few rounds (loss still falling at round 20), limited capacity (28 working dials). Experiment 3 tests the encoding as a whole. Optional extras, each with a prediction written first: ZZ with the pair gates switched off, and a long-training run (for example 200 rounds) on exam 0.
+
+Extra run, added after experiment 3: the angle VQC on 25 exams will score about 68 to 71% balanced accuracy and stay below logistic regression.
+
+On moons (artificial curved data, 2 qubits, first 5 exams), the ZZ VQC scored 74.1% balanced accuracy, significantly below logistic regression (85.7%). Added after seeing results: one extra trainable rotation on the reading qubit raised it to 81.3% (+7.2 points, p = 0.045), with no significant difference found from logistic regression (p = 0.11). Training 5 to 10 times longer did not help (72.5%, no significant difference found from the original), and did not raise the score on the training patients. This suggests the limit lies in what the circuit can read out, not in training length (hypothesis; the extra rotation also adds dials, so the two were not separated). These results are on artificial data and 5 exams and do not show the same effect on Pima.
