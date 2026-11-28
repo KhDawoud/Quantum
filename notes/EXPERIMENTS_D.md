@@ -315,3 +315,70 @@ Prediction for run C (written 2026-11-28 17:48 +0200, before run C). Written aft
 I expect the ZZ VQC with chain wiring (cable_ranges=[1, 1]) to score significantly higher in balanced accuracy than the main ZZ VQC on the same 5 Pima exams (61.4%), meaning compare_models gives p < 0.05, with a gain of about 9 points, to about 70%. I expect it to stay below logistic regression (74.0% on the same 5 exams).
 
 Reason (hypothesis): on the moons data, adding a rotation at the reading qubit (run A) raised the ZZ VQC by about 7 points, while training longer (run B) did not. That suggests the circuit limits it more than the training does. Run C lets 10 more dials affect the reading.
+### Run C setup
+- **Label:** part of experiment 6, **added after seeing results**. The main 25-exam table is unchanged.
+- **Question:** on Pima, does rewiring the second trainable layer so that more dials can affect the reading help the ZZ VQC? One change only.
+- **What changed:** `cable_ranges=[1, 1]`, passed as the `ranges` argument of `qml.StronglyEntanglingLayers`. The default for 8 qubits and 2 layers is ranges (1, 2): layer 2 links each qubit to the one two places further on (CNOT i -> i+2). With (1, 1), layer 2 uses the same chain as layer 1 (CNOT i -> i+1, and 7 -> 0).
+- **What stayed the same:** Pima, ZZ encoding, all 8 columns (8 qubits, original column order), 2 layers, reading qubit 0, the usual `PARAM_GRID` (lr {0.02, 0.05} x epochs {20, 40}, 4 combinations tuned per exam by 3-fold inner GridSearchCV), seed 42, first 5 exams (`n_splits_to_run=EXPERIMENT_EVAL_SPLITS`), and every other `evaluate()` argument as in the main run.
+- **Default model unchanged:** with `cable_ranges=None` the VQC gives bit-identical weights, predictions and loss to the earlier code, for both encodings (tests in `tests/test_vqc.py`).
+- **Live dials** (printed check, not saved as a result; same gradient check and random draws as experiment 1; ZZ and angle gave the same counts):
+
+| Ranges (8 qubits, 2 layers) | Live dials (of 48) | Layer 1 (of 24) | Layer 2 (of 24) |
+|---|---|---|---|
+| Default (1, 2), main run | 28 | 22 | 6 |
+| (1, 1), run C | 38 | 24 | 14 |
+
+- **Baselines (saved files, not re-run):** the first 5 rows of `results/vqc_zz_25.csv` (main ZZ VQC) and of `results/logreg.csv` (logistic regression); split ids 0-4 and training/test sizes match run C.
+- **Script:** `src/run_exp_d.py` (`exp6c`, `exp6c-report`), code at commit `fffdc45`. A 1-exam quick check ran in a scratch folder first, was deleted, and its numbers were not used.
+- **Run:** one at a time, nothing else running, 2026-11-28 17:54-18:21 +0200 (from `results/experiments/logs/exp6_pima_ranges11.txt`), inside the 60-minute cut-off. The prediction above was committed (`3150f00`, 17:49:59) before the run started.
+
+### Run C results (Pima, same 5 exams; mean +/- spread across exams)
+
+| Model | Balanced accuracy | Accuracy | Time per exam |
+|---|---|---|---|
+| Logistic regression (first 5 exams) | 74.00% +/- 3.83 | 74.60% | 0.2 s |
+| Main ZZ VQC (first 5 exams) | 61.43% +/- 2.76 | 64.19% | 360.6 s |
+| **Run C: chain wiring (1, 1)** | **60.46% +/- 4.68** | 62.24% | 325.3 s |
+
+| Comparison (balanced accuracy, compare_models, df = 4) | Difference | p-value | Verdict (as returned) |
+|---|---|---|---|
+| Run C vs main ZZ VQC | -0.97 points | 0.8505 | no significant difference found |
+| Run C vs logistic regression | -13.54 points | 0.0593 | no significant difference found |
+
+Full table: `results/experiments/exp6_pima_ranges11_comparison.csv` (recomputed from the saved CSVs; identical). With only 5 exams these tests have little power: run C is 13.5 points below logistic regression, but p = 0.059 is just above 0.05.
+
+Per exam (balanced accuracy) and winning settings:
+
+| Exam | Main ZZ VQC | Main settings | Run C | Run C settings | Run C time |
+|---|---|---|---|---|---|
+| 0 | 0.584 | 20 epochs, lr 0.02 | 0.626 | 40, 0.05 | 282 s |
+| 1 | 0.652 | 40, 0.02 | 0.558 | 20, 0.02 | 329 s |
+| 2 | 0.624 | 20, 0.02 | 0.591 | 20, 0.02 | 258 s |
+| 3 | 0.591 | 40, 0.02 | 0.675 | 20, 0.02 | 331 s |
+| 4 | 0.621 | 40, 0.02 | 0.574 | 20, 0.02 | 426 s |
+
+Run C was higher in 2 exams and lower in 3.
+
+Underfitting check, exam 0 only: run C's winning model was rebuilt on its 614 training patients (same pipeline and seed; the rebuilt model's test score matched the saved one exactly, 0.6256) and scored on those same patients.
+
+| Model (exam 0 settings) | Balanced accuracy on its own training patients | On test patients |
+|---|---|---|
+| Main ZZ VQC (20 epochs, lr 0.02; from the earlier diagnostic in `notes/DESIGN_D.md`) | 0.604 | 0.584 |
+| Run C (40 epochs, lr 0.05) | 0.6433 | 0.6256 |
+
+No figure was made for run C.
+
+### Run C against my prediction
+Prediction (written 2026-11-28 17:48 +0200, before run C): "I expect the ZZ VQC with chain wiring (cable_ranges=[1, 1]) to score significantly higher in balanced accuracy than the main ZZ VQC on the same 5 Pima exams (61.4%), meaning compare_models gives p < 0.05, with a gain of about 9 points, to about 70%. I expect it to stay below logistic regression (74.0% on the same 5 exams)."
+- **Did not hold:** run C scored 60.46%, -0.97 points against the main ZZ VQC, no significant difference found (p = 0.8505), not the predicted gain of about 9 points.
+- **Below logistic regression, as predicted:** 13.54 points below, but with 5 exams the difference is not significant (p = 0.0593).
+
+### Run C: what this means (2-3 sentences)
+On Pima, letting 38 instead of 28 dials affect the reading did not raise the ZZ VQC: run C and the main ZZ VQC are within about 1 point (no significant difference found), and on exam 0 run C still scores about the same on its own training patients as on test patients (0.643 and 0.626), so it still underfits. **Hypotheses, not shown:** a dial that *can* affect the reading is not necessarily one that training uses well, which also fits experiment 1 (4 qubits, 12 live dials, scored no lower than 8 qubits with 28); and run A's gain on moons may come from changing the reading itself (a rotation just before the measurement) rather than from how many dials reach it, but run A was on artificial 2-qubit data and changed the reading and the dial count together, so runs A and C do not test the same thing.
+
+### Run C: honest limits
+- Added after seeing results (experiment 6 runs A and B, and the live-dial counts).
+- 5 exams only, so low power: a real difference of a few points could come out as "no significant difference found".
+- The live-dial count only says a dial can affect the reading, not that it helps the score.
+- The underfitting check is exam 0 only, and run C and the main run chose different settings on exam 0 (40 epochs, lr 0.05 against 20 epochs, lr 0.02).
+- Only the ZZ encoding and the (1, 1) wiring were run; reading a different qubit (for example qubit 7) was checked for live dials only and not run.
