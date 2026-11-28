@@ -1,0 +1,11 @@
+Results for 'exp6_vqc_zz_rot_moons768_5ex' (5 splits, 2 features, quick=False)
+  Always-guess floor : 50.00%
+  Accuracy           : 81.25% +/- 1.88%
+  Balanced accuracy  : 81.25% +/- 1.88%
+  Macro F1           : 81.12% +/- 1.98%
+  Train time / split : 59.0092s +/- 2.0022s
+  Saved CSV          : C:\Users\Lenovo\dev\Quantum Computing Competition\Quantum\results\experiments\exp6_vqc_zz_rot_moons768_5ex.csv
+  Started            : 2026-11-28 16:46 +0200
+  Finished           : 2026-11-28 16:51 +0200
+  Winning settings   : ['{"epochs": 20, "lr": 0.05}', '{"epochs": 20, "lr": 0.02}', '{"epochs": 20, "lr": 0.05}', '{"epochs": 20, "lr": 0.05}', '{"epochs": 40, "lr": 0.02}']
+  Settings grid      : {"lr": [0.02, 0.05], "epochs": [20, 40]}
