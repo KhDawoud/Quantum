@@ -243,4 +243,68 @@ Recorded here 2026-11-28 16:59 +0200. Given to Claude Code while run B was still
 
 > I expect longer training (100 or 200 rounds) to raise the ZZ VQC's balanced accuracy on moons above 74.1% (first 5 exams). Reason (hypothesis): on Pima the ZZ VQC mostly chose the longer setting (40 rounds) and underfitted even its own training patients, so it may be stopping too early.
 
-Note: the claim "on Pima the ZZ VQC mostly chose 40 rounds" has not been checked against the saved files yet (**unverified**).
+Note: the claim "on Pima the ZZ VQC mostly chose 40 rounds" was checked on 2026-11-28 by re-counting `results/vqc_zz_25.csv`: 40 rounds won in 17 of 25 exams (20 rounds in 8).
+
+### Setup
+- **Label:** the whole experiment was **added after seeing results** (after experiment 5). The main 25-exam table is unchanged.
+- **What changed (one change per run):**
+  - **Run A:** `final_rotation=True`: one extra trainable `qml.Rot` (3 angles) on the readout qubit (wire 0), after the StronglyEntanglingLayers and before measuring `<Z0>`. The 3 angles start at normal(0, 0.1), drawn after the main weights, and are trained by the same Adam optimiser. Usual `PARAM_GRID` (lr {0.02, 0.05} x epochs {20, 40}).
+  - **Run B:** circuit unchanged (`final_rotation=False`), longer training: grid lr {0.02, 0.05} x epochs {100, 200} (4 combinations).
+- **What stayed the same:** ZZ encoding, 2 layers, 2 qubits, seed 42, the same artificial moons data (`make_moons_dataset()`, 768 points) and exactly the same `evaluate()` arguments as experiment 5 (`n_features=2`, `zero_as_missing_cols=()`, `n_splits_to_run=EXPERIMENT_EVAL_SPLITS`), so the same 5 exams (614-615 training / 153-154 test points) and 4 combinations tuned per exam by 3-fold inner GridSearchCV.
+- **Default model unchanged:** with `final_rotation=False` the VQC gives bit-identical weights, predictions and loss to the code before the option existed (tests in `tests/test_vqc.py`). A rerun of the default ZZ VQC on moons exam 0 (scratch folder, deleted) matched exam 0 of the saved experiment 5 file exactly (balanced accuracy 0.7273, settings 20 epochs, lr 0.05).
+- **Baselines (saved files, not re-run):** `results/experiments/exp5_vqc_zz_moons768_5ex.csv` (experiment 5 ZZ VQC) and `results/exp5_logreg_moons.csv` (logistic regression).
+- **Script:** `src/run_exp_d.py` (`exp6 --run A`, `exp6 --run B`, `exp6-report`), code at commit `f9cc8ea`.
+- **Runs** (from `results/experiments/logs/`), one at a time, nothing else running, 2026-11-28 +0200: A 16:46-16:51, B 16:51-17:11.
+
+### Results (ARTIFICIAL moons data, same 5 exams; mean +/- spread across exams)
+
+| Model | Balanced accuracy | Gap to exp 5 ZZ VQC | Gap to logistic regression | Time per exam | Settings chosen |
+|---|---|---|---|---|---|
+| Logistic regression (saved) | 85.66% +/- 3.35 | +11.58 | 0 | 0.2 s | - |
+| Experiment 5 ZZ VQC (saved) | 74.09% +/- 4.46 | 0 | -11.58 | 53.1 s | 20 epochs x3, 40 x2 |
+| **A: + final rotation** | **81.25% +/- 1.88** | **+7.16** | **-4.42** | 59.0 s | 20 epochs x4, 40 x1 |
+| **B: longer training** | **72.53% +/- 5.75** | **-1.55** | **-13.13** | 238.4 s | 200 epochs x3, 100 x2 |
+
+| Comparison (balanced accuracy, compare_models, df = 4) | Difference | p-value | Verdict (as returned) |
+|---|---|---|---|
+| A vs experiment 5 ZZ VQC | +7.16 points | 0.0451 | significant difference found (p < 0.05) |
+| A vs logistic regression | -4.42 points | 0.1132 | no significant difference found |
+| B vs experiment 5 ZZ VQC | -1.55 points | 0.3197 | no significant difference found |
+| B vs logistic regression | -13.13 points | 0.0087 | significant difference found (p < 0.05) |
+
+Full table: `results/experiments/exp6_vqc_comparison.csv` (recomputed with `compare_models()` from the saved CSVs; identical). A's p = 0.045 is **borderline** with only 5 exams: it sits just under 0.05, and these tests have little power.
+
+Per exam (balanced accuracy) and winning settings:
+
+| Exam | Exp 5 ZZ VQC | A: final rotation | A settings | B: longer training | B settings |
+|---|---|---|---|---|---|
+| 0 | 0.727 | 0.812 | 20 epochs, lr 0.05 | 0.721 | 200, 0.02 |
+| 1 | 0.747 | 0.805 | 20, 0.02 | 0.701 | 100, 0.05 |
+| 2 | 0.747 | 0.792 | 20, 0.05 | 0.740 | 100, 0.05 |
+| 3 | 0.804 | 0.843 | 20, 0.05 | 0.811 | 200, 0.02 |
+| 4 | 0.680 | 0.810 | 40, 0.02 | 0.654 | 200, 0.05 |
+
+Underfitting check, exam 0 only: the winning model was refitted on its 614 training points (same pipeline and seed; each refit reproduced the saved test score exactly) and scored on those same training points.
+
+| Model (exam 0 settings) | Balanced accuracy on its own training points | On test points |
+|---|---|---|
+| Experiment 5 ZZ VQC (20 epochs, lr 0.05) | 0.7508 | 0.7273 |
+| A: final rotation (20 epochs, lr 0.05) | 0.8127 | 0.8117 |
+| B: longer training (200 epochs, lr 0.02) | 0.7459 | 0.7208 |
+
+No figure was made for this experiment.
+
+### Against my predictions
+- **Run A** (recorded 2026-11-28 16:59 +0200; given after run A's result had already been shown, earlier record unverified): "I expected the ZZ VQC with the extra final rotation to score higher in balanced accuracy than the saved ZZ VQC on moons (74.1%, first 5 exams)." **Held:** A scored 81.25%, +7.16 points, significant difference found (p = 0.0451, borderline). Because this prediction was given after the result was seen, it is not a test of the prediction.
+- **Run B** (recorded 2026-11-28 16:59 +0200; given while run B was running, before its result was seen): "I expect longer training (100 or 200 rounds) to raise the ZZ VQC's balanced accuracy on moons above 74.1% (first 5 exams)." **Did not hold:** B scored 72.53%, -1.55 points, no significant difference found (p = 0.3197). Exam 0's training-point score did not rise either (0.7459 at 200 epochs against 0.7508 at 20).
+
+### What this means (2-3 sentences)
+On the moons data, adding one trainable rotation before the reading raised the ZZ VQC by about 7 points (borderline significant), while training 5 to 10 times longer did not raise it and did not raise its score on its own training points; all three models score about the same on training and test points, so they underfit rather than overfit. **Hypothesis, not shown:** the limit is the circuit, specifically the direction in which qubit 0 is read, not the number of training rounds. Run A also adds 3 trainable dials, so "more dials" and "a better reading direction" were not separated by this experiment, and with A still 4.42 points below logistic regression (no significant difference found, 5 exams) it does not show that the VQC has caught up.
+
+### Honest limits
+- Added after seeing results; the run A prediction was given after its result was shown.
+- Artificial data, 2 qubits, 5 exams only, so low power; A's p = 0.045 is borderline. **Not shown for Pima** (8 qubits, real data).
+- Run A changes two things at once: the reading direction and the number of dials (+3). They were not separated.
+- The underfitting check is exam 0 only.
+- Run B uses a different settings grid (epochs {100, 200}) from experiment 5 (epochs {20, 40}); the learning rates are the same.
+- Only the ZZ encoding was run; the angle versions were not run.
