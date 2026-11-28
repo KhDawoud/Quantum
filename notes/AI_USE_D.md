@@ -128,3 +128,17 @@ Team decision: main table = 25 splits for all models; experiments = first 5 spli
 ### Honest limits
 - No significance test between sizes was run.
 - Manifest rows record commit `cab351d`; `src/run_exp_d.py` was not yet committed then.
+
+## Session 11: 2026-11-28: read-only check of experiment 5 (moons)
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| Search | `git fetch --all --prune`, then `git ls-tree`, `git grep -i` and `git log` on main and every remote branch for moons / exp5 files, text, results, figures and notes. | Read-only git commands only. No model or experiment was run; `compare_models` was not run. |
+| Results file | Read `results/exp5_qkernel_moons.csv` from main (C's ZZ kernel) and computed its rows, split ids, n_train / n_test, mean and spread. | 5 rows, 320 / 80, balanced accuracy 93.25% +/- 3.38. |
+| Comparison | Compared the data and `evaluate()` calls of C and A's deleted run with the agreed setup. | Everyone used 400 points, not 768; no shared `src/moons_data.py`. |
+| Report | Wrote `notes/MOONS_CHECK.md`. | n/a |
+
+### Honest limits
+- A's deleted run is known only from A's own AI log, not from a file (unverified).
+- The per-file commit for C's CSV and figure is unverified; where "768 patients" was agreed is unverified.
+- Nothing else was edited, created, deleted or committed.
