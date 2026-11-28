@@ -308,3 +308,10 @@ On the moons data, adding one trainable rotation before the reading raised the Z
 - The underfitting check is exam 0 only.
 - Run B uses a different settings grid (epochs {100, 200}) from experiment 5 (epochs {20, 40}); the learning rates are the same.
 - Only the ZZ encoding was run; the angle versions were not run.
+
+
+Prediction for run C ( before run C). Written after the 25-exam main results, experiments 1, 2, 3 and 5, experiment 6 runs A and B, and after seeing the live-dial counts for run C's circuit (28 → 38 of 48 at 8 qubits).
+
+I expect the ZZ VQC with chain wiring (cable_ranges=[1, 1]) to score significantly higher in balanced accuracy than the main ZZ VQC on the same 5 Pima exams (61.4%), meaning compare_models gives p < 0.05, with a gain of about 9 points, to about 70%. I expect it to stay below logistic regression (74.0% on the same 5 exams).
+
+Reason (hypothesis): on the moons data, adding a rotation at the reading qubit (run A) raised the ZZ VQC by about 7 points, while training longer (run B) did not. That suggests the circuit limits it more than the training does. Run C lets 10 more dials affect the reading.
