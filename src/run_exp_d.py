@@ -1,4 +1,4 @@
-"""Member D's VQC experiment runner (experiments 3, 1, 2).
+"""Member D's VQC experiment runner (experiments 3, 1, 2, 5, 6).
 
 Usage (from the repo root, one run at a time):
     .venv/Scripts/python -m src.run_exp_d exp3 --quick   # quick check -> scratch_quick/
@@ -85,11 +85,12 @@ def _add_manifest_row(cells: list[str]) -> None:
         fh.write("| " + " | ".join(c.replace("|", "/") for c in cells) + " |\n")
 
 
-def _run(name: str, model_factory, *, quick: bool, command: str, manifest: dict,
-         **eval_kwargs) -> dict:
-    """Run one evaluate() call; real runs save a log and a manifest row."""
+def _run(name: str, model_factory, *, quick: bool, command: str, manifest: dict | None,
+         param_grid: dict | None = None, **eval_kwargs) -> dict:
+    """Run one evaluate() call; real runs save a log (and a manifest row if given)."""
+    grid = PARAM_GRID if param_grid is None else param_grid
     if quick:
-        summary = evaluate(name, model_factory, PARAM_GRID, quick=True,
+        summary = evaluate(name, model_factory, grid, quick=True,
                            results_dir=SCRATCH_DIR, **{**eval_kwargs, "n_splits_to_run": 1})
         print(format_summary(summary))
         print("QUICK CHECK ONLY: numbers are not used.")
@@ -98,16 +99,18 @@ def _run(name: str, model_factory, *, quick: bool, command: str, manifest: dict,
     target = EXP_DIR / f"{name}.csv"
     _refuse_if_exists(target)
     started = _now()
-    summary = evaluate(name, model_factory, PARAM_GRID, results_dir=EXP_DIR, **eval_kwargs)
+    summary = evaluate(name, model_factory, grid, results_dir=EXP_DIR, **eval_kwargs)
     text = format_summary(summary)
     print(text)
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     winners = summary["results"]["best_params"].tolist()
     (LOG_DIR / f"{name}.txt").write_text(
         text + f"\n  Started            : {started}\n  Finished           : {_now()}\n"
-        f"  Winning settings   : {winners}\n",
+        f"  Winning settings   : {winners}\n  Settings grid      : {json.dumps(grid)}\n",
         encoding="utf-8",
     )
+    if manifest is None:
+        return summary
     _add_manifest_row([
         f"`results/experiments/{name}.csv`",
         manifest["experiment"],
@@ -117,7 +120,7 @@ def _run(name: str, model_factory, *, quick: bool, command: str, manifest: dict,
         manifest["columns"],
         manifest["encoding"],
         manifest["layers"],
-        json.dumps(PARAM_GRID),
+        json.dumps(grid),
         manifest["tuning"],
         _git_short_hash(),
         started,
@@ -645,13 +648,121 @@ def report_exp5_vqc() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# experiment 6 (added after seeing results): circuit structure vs training, moons
+# --------------------------------------------------------------------------- #
+EXP6_LONG_GRID = {"lr": [0.02, 0.05], "epochs": [100, 200]}
+EXP6 = {
+    # run -> (file name, model factory, settings grid, what changed vs exp5 ZZ VQC)
+    "A": ("exp6_vqc_zz_rot_moons768_5ex",
+          lambda: make_model(encoding="zz", final_rotation=True), None,
+          "final_rotation=True (one extra trainable Rot on wire 0); usual PARAM_GRID"),
+    "B": ("exp6_vqc_zz_long_moons768_5ex",
+          lambda: make_model(encoding="zz"), EXP6_LONG_GRID,
+          "longer training: epochs {100, 200} x lr {0.02, 0.05}; circuit unchanged"),
+}
+
+
+def run_exp6(run: str, quick: bool) -> None:
+    """Same evaluate() arguments as exp5-vqc; one change per run (A or B)."""
+    from src.experiment_qkernel import make_moons_dataset
+
+    if run not in EXP6:
+        sys.exit("exp6 needs --run A or --run B")
+    name, factory, grid, changed = EXP6[run]
+    X_moons, y_moons = make_moons_dataset()
+    print(f"Exp 6 run {run}: {changed}", flush=True)
+    _run(
+        name,
+        factory,
+        quick=quick,
+        command=f"python -m src.run_exp_d exp6 --run {run}",
+        manifest=None,  # MANIFEST_D.md not edited for exp 6 (not in the agreed file list)
+        param_grid=grid,
+        n_features=2,
+        X=X_moons,
+        y=y_moons,
+        zero_as_missing_cols=(),
+        n_splits_to_run=EXPERIMENT_EVAL_SPLITS,
+    )
+
+
+def _exam0_train_score(factory, params: dict) -> tuple[float, float]:
+    """Refit exam 0 with its winning settings; return (train, test) balanced accuracy.
+
+    Uses the same pipeline builder and splits as evaluate(); seed 42 makes the refit
+    identical to the model evaluate() scored, which the test score lets us check.
+    """
+    from sklearn.metrics import balanced_accuracy_score
+
+    from src.evaluate import _build_pipeline, get_splits
+    from src.experiment_qkernel import make_moons_dataset
+
+    X, y = make_moons_dataset()
+    y = np.asarray(y)
+    train_idx, test_idx = get_splits(X, y)[0]
+    pipe = _build_pipeline(factory, 2, ())
+    pipe.set_params(**{f"clf__{k}": v for k, v in params.items()})
+    pipe.fit(X[train_idx], y[train_idx])
+    return (float(balanced_accuracy_score(y[train_idx], pipe.predict(X[train_idx]))),
+            float(balanced_accuracy_score(y[test_idx], pipe.predict(X[test_idx]))))
+
+
+def report_exp6() -> None:
+    zz5 = pd.read_csv(EXP_DIR / f"{EXP5_VQC['zz']}.csv")
+    logreg = pd.read_csv(EXP5_SAVED["Logistic regression"])
+    runs = {r: pd.read_csv(EXP_DIR / f"{EXP6[r][0]}.csv") for r in EXP6}
+
+    print("Mean +/- spread (balanced accuracy, 5 exams):")
+    for label, d in (("exp5 ZZ VQC", zz5), ("logistic regression", logreg),
+                     ("exp6 A (final Rot)", runs["A"]), ("exp6 B (long training)", runs["B"])):
+        ba = d["balanced_accuracy"]
+        print(f"  {label:24s} {ba.mean():.4f} +/- {ba.std(ddof=1):.4f}   "
+              f"time/exam {d['train_time_sec'].mean():.1f} s")
+
+    rows = []
+    for r, d in runs.items():
+        for other_label, other in (("exp5 ZZ VQC", zz5), ("logistic regression", logreg)):
+            res = compare_models(d, other, metric="balanced_accuracy")
+            rows.append({"run": r, "model_a": EXP6[r][0], "model_b": other_label,
+                         "mean_a": res["mean_a"], "std_a": float(d["balanced_accuracy"].std(ddof=1)),
+                         "mean_b": res["mean_b"],
+                         "std_b": float(other["balanced_accuracy"].std(ddof=1)),
+                         "mean_diff_a_minus_b": res["mean_diff"], "t_stat": res["t_stat"],
+                         "df": res["df"], "p_value": res["p_value"],
+                         "conclusion": res["conclusion"]})
+    table = pd.DataFrame(rows)
+    out = EXP_DIR / "exp6_vqc_comparison.csv"
+    _refuse_if_exists(out)
+    table.to_csv(out, index=False)
+    print()
+    with pd.option_context("display.width", 250, "display.max_colwidth", 80):
+        print(table.drop(columns=["model_a"]).round(4).to_string(index=False))
+
+    print("\nPer exam (balanced accuracy, winning settings):")
+    for label, d in (("exp5 ZZ VQC", zz5), ("A", runs["A"]), ("B", runs["B"])):
+        print(f"  {label}: {d['balanced_accuracy'].round(4).tolist()}  {d['best_params'].tolist()}")
+
+    print("\nExam 0, balanced accuracy on its own 614 training points (refit, winning settings):")
+    factories = {"exp5 ZZ VQC": (lambda: make_model(encoding="zz"), zz5),
+                 "A": (EXP6["A"][1], runs["A"]), "B": (EXP6["B"][1], runs["B"])}
+    for label, (factory, d) in factories.items():
+        params = json.loads(d["best_params"].iloc[0])
+        train_ba, test_ba = _exam0_train_score(factory, params)
+        saved = float(d["balanced_accuracy"].iloc[0])
+        print(f"  {label:12s} settings {params}: train {train_ba:.4f} | test {test_ba:.4f} "
+              f"(saved test {saved:.4f}, match: {abs(test_ba - saved) < 1e-12})")
+
+
+# --------------------------------------------------------------------------- #
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("task", choices=["exp3", "exp3-report", "exp1", "exp1-dials",
                                          "exp1-report", "exp2", "exp2-report", "exp5-refs",
-                                         "exp5-vqc", "exp5-vqc-report"])
+                                         "exp5-vqc", "exp5-vqc-report", "exp6",
+                                         "exp6-report"])
     parser.add_argument("--enc", choices=["zz", "angle"], help="encoding for exp5-vqc")
+    parser.add_argument("--run", choices=sorted(EXP6), help="exp6 run: A or B")
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--q", type=int, help="number of columns for exp1 (4 or 6)")
     args = parser.parse_args()
@@ -675,6 +786,10 @@ def main() -> None:
         run_exp5_vqc(args.enc, args.quick)
     elif args.task == "exp5-vqc-report":
         report_exp5_vqc()
+    elif args.task == "exp6":
+        run_exp6(args.run, args.quick)
+    elif args.task == "exp6-report":
+        report_exp6()
 
 
 if __name__ == "__main__":
