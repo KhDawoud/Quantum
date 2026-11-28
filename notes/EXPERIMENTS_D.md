@@ -382,3 +382,9 @@ On Pima, letting 38 instead of 28 dials affect the reading did not raise the ZZ 
 - The live-dial count only says a dial can affect the reading, not that it helps the score.
 - The underfitting check is exam 0 only, and run C and the main run chose different settings on exam 0 (40 epochs, lr 0.05 against 20 epochs, lr 0.02).
 - Only the ZZ encoding and the (1, 1) wiring were run; reading a different qubit (for example qubit 7) was checked for live dials only and not run.
+
+Prediction for run D (written 2026-11-28 18:58 +0200, before run D). Written after the 25-exam main results, experiments 1, 2, 3 and 5, and experiment 6 runs A, B and C (run C: chain wiring on Pima, 60.5%, no significant difference found from the main ZZ VQC).
+
+I expect the ZZ VQC with one extra trainable rotation on qubit 0 before the reading (final_rotation=True, default wiring) to score significantly higher in balanced accuracy than the main ZZ VQC on the same 5 Pima exams (61.4%), meaning compare_models gives p < 0.05, with a gain of about 9 points, to about 70%. I expect it to stay below logistic regression (74.0% on the same 5 exams).
+
+Reason (hypothesis): run C let 10 more dials affect the reading and did not help, so the number of active dials does not seem to be the limit. On moons, run A added a rotation on the reading qubit itself and raised the ZZ VQC by about 7 points. So I think the gain comes from the extra rotation on qubit 0 changing how the answer is read out, not from extra active dials.
