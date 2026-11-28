@@ -70,8 +70,11 @@ def angle_feature_map(x, n_qubits: int) -> None:
     qml.AngleEmbedding(x, wires=range(n_qubits), rotation="X")
 
 
-def build_qnode(n_qubits: int, encoding: str):
+def build_qnode(n_qubits: int, encoding: str, final_rotation: bool = False):
     """Return ``circuit(weights, x) -> <Z_0>`` for a batch ``x`` of shape (B, n_qubits).
+
+    With ``final_rotation=True`` the signature is ``circuit(weights, x, final_weights)``
+    and one extra trainable ``qml.Rot`` acts on wire 0 just before the measurement.
 
     Batching trick (PennyLane "parameter broadcasting"): because ``x[:, i]`` is a whole
     vector of angles, ONE circuit execution evaluates every patient in the mini-batch.
@@ -82,16 +85,33 @@ def build_qnode(n_qubits: int, encoding: str):
         raise ValueError(f"encoding must be 'zz' or 'angle', got {encoding!r}")
     dev = qml.device("default.qubit", wires=n_qubits)
 
+    if not final_rotation:
+        # Default circuit: unchanged from before the final_rotation option existed.
+        @qml.qnode(dev, interface="autograd", diff_method="backprop")
+        def circuit(weights, x):
+            if encoding == "zz":
+                zz_feature_map(x, n_qubits)
+            else:
+                angle_feature_map(x, n_qubits)
+            qml.StronglyEntanglingLayers(weights, wires=range(n_qubits))
+            return qml.expval(qml.PauliZ(0))
+
+        return circuit
+
     @qml.qnode(dev, interface="autograd", diff_method="backprop")
-    def circuit(weights, x):
+    def circuit_rot(weights, x, final_weights):
         if encoding == "zz":
             zz_feature_map(x, n_qubits)
         else:
             angle_feature_map(x, n_qubits)
         qml.StronglyEntanglingLayers(weights, wires=range(n_qubits))
+        # Experiment 6: one extra general single-qubit rotation on the readout qubit.
+        # qml.Rot(phi, theta, omega) = RZ(omega) RY(theta) RZ(phi), see PennyLane docs:
+        # https://docs.pennylane.ai/en/stable/code/api/pennylane.Rot.html
+        qml.Rot(final_weights[0], final_weights[1], final_weights[2], wires=0)
         return qml.expval(qml.PauliZ(0))
 
-    return circuit
+    return circuit_rot
 
 
 # --------------------------------------------------------------------------- #
@@ -107,9 +127,13 @@ class VQCClassifier(BaseEstimator, ClassifierMixin):
         epochs: fixed number of passes over the training data (no early stopping).
         batch_size: patients per mini-batch.
         random_state: seed for weight initialisation and batch shuffling (42).
+        final_rotation: experiment 6 option (default False = the original model).
+            If True, one extra trainable ``qml.Rot`` (3 angles) on wire 0 after the
+            StronglyEntanglingLayers, trained together with the main weights.
 
     Attributes after fit:
         weights_: trained dials, shape (n_layers, n_qubits, 3).
+        final_weights_: (only if final_rotation) the 3 trained Rot angles.
         loss_history_: list with one value per epoch = mean class-weighted binary
             cross-entropy over that epoch's mini-batches.
         classes_, n_qubits_, class_weights_.
@@ -123,6 +147,7 @@ class VQCClassifier(BaseEstimator, ClassifierMixin):
         epochs: int = 20,
         batch_size: int = 32,
         random_state: int = RANDOM_SEED,
+        final_rotation: bool = False,
     ) -> None:
         self.encoding = encoding
         self.n_layers = n_layers
@@ -130,6 +155,7 @@ class VQCClassifier(BaseEstimator, ClassifierMixin):
         self.epochs = epochs
         self.batch_size = batch_size
         self.random_state = random_state
+        self.final_rotation = final_rotation
 
     # -- helpers ----------------------------------------------------------- #
     @staticmethod
@@ -167,11 +193,14 @@ class VQCClassifier(BaseEstimator, ClassifierMixin):
         self.class_weights_ = n / (2.0 * counts)
         sample_w = self.class_weights_[y01.astype(int)]
 
-        circuit = build_qnode(n_qubits, self.encoding)
+        circuit = build_qnode(n_qubits, self.encoding, final_rotation=self.final_rotation)
         rng = np.random.default_rng(self.random_state)
         shape = qml.StronglyEntanglingLayers.shape(n_layers=self.n_layers, n_wires=n_qubits)
         # Small random start (like the PennyLane variational-classifier demo's 0.01*randn).
         weights = pnp.array(rng.normal(0.0, 0.1, size=shape), requires_grad=True)
+        if self.final_rotation:
+            # Drawn AFTER the main weights, so the main weights match the default model's.
+            final_w = pnp.array(rng.normal(0.0, 0.1, size=3), requires_grad=True)
 
         opt = qml.AdamOptimizer(stepsize=self.lr)
         self.loss_history_ = []
@@ -183,17 +212,28 @@ class VQCClassifier(BaseEstimator, ClassifierMixin):
                 idx = order[start : start + self.batch_size]
                 xb, yb, wb = X[idx], y01[idx], sample_w[idx]
 
-                def cost(w, xb=xb, yb=yb, wb=wb):
-                    p = self._prob_class1(circuit(w, xb))
-                    bce = -(yb * pnp.log(p + EPS) + (1 - yb) * pnp.log(1 - p + EPS))
-                    return pnp.mean(wb * bce)
+                if not self.final_rotation:
+                    def cost(w, xb=xb, yb=yb, wb=wb):
+                        p = self._prob_class1(circuit(w, xb))
+                        bce = -(yb * pnp.log(p + EPS) + (1 - yb) * pnp.log(1 - p + EPS))
+                        return pnp.mean(wb * bce)
 
-                weights, batch_loss = opt.step_and_cost(cost, weights)
+                    weights, batch_loss = opt.step_and_cost(cost, weights)
+                else:
+                    def cost_rot(w, fw, xb=xb, yb=yb, wb=wb):
+                        p = self._prob_class1(circuit(w, xb, fw))
+                        bce = -(yb * pnp.log(p + EPS) + (1 - yb) * pnp.log(1 - p + EPS))
+                        return pnp.mean(wb * bce)
+
+                    # One Adam optimiser updates both arrays (PennyLane returns them as a list).
+                    (weights, final_w), batch_loss = opt.step_and_cost(cost_rot, weights, final_w)
                 epoch_losses.append(float(batch_loss))
                 epoch_sizes.append(len(idx))
             self.loss_history_.append(float(np.average(epoch_losses, weights=epoch_sizes)))
 
         self.weights_ = np.asarray(weights)
+        if self.final_rotation:
+            self.final_weights_ = np.asarray(final_w)
         return self
 
     def predict_proba(self, X) -> np.ndarray:
@@ -202,11 +242,17 @@ class VQCClassifier(BaseEstimator, ClassifierMixin):
         if X.shape[1] != self.n_qubits_:
             raise ValueError(f"Expected {self.n_qubits_} columns, got {X.shape[1]}")
         # Rebuilt (cheap) instead of stored, so fitted models stay picklable for joblib.
-        circuit = build_qnode(self.n_qubits_, self.encoding)
+        circuit = build_qnode(self.n_qubits_, self.encoding, final_rotation=self.final_rotation)
         w = pnp.array(self.weights_, requires_grad=False)
+        if self.final_rotation:
+            check_is_fitted(self, ["final_weights_"])
+            fw = pnp.array(self.final_weights_, requires_grad=False)
+            extra = (fw,)
+        else:
+            extra = ()
         p1 = np.concatenate(
             [
-                np.asarray(self._prob_class1(circuit(w, X[s : s + 256])))
+                np.asarray(self._prob_class1(circuit(w, X[s : s + 256], *extra)))
                 for s in range(0, len(X), 256)
             ]
         )

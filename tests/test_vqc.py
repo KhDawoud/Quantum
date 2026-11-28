@@ -146,6 +146,70 @@ def test_loss_goes_down_on_easy_data():
     assert model.loss_history_[-1] < model.loss_history_[0]
 
 
+# --------------------------------------------------------------------------- #
+# Experiment 6: final_rotation option
+# --------------------------------------------------------------------------- #
+# Recorded with the code BEFORE final_rotation existed (commit 4a7f922), ZZ encoding,
+# fake_data(n=40, n_features=3, seed=5), epochs=3, lr=0.05. Bit-identical on the
+# machine where it was recorded; atol=1e-12 only allows for other CPUs/BLAS builds.
+REF_ZZ_WEIGHTS = np.array([
+    -0.23049375098156538, -0.39488258044733654, 0.01051315423265046,
+    -0.02579565856442932, -0.2382568471309957, -0.2560875740167479,
+    -0.2613484321463911, -0.30746715550820974, -0.17559604512316052,
+    -0.10763936546215311, -0.19110183103901818, 0.07777919363711365,
+    -0.02069388571872444, -0.0991133679955066, 0.04675093421377267,
+    -0.08592924624836919, 0.03687507835437991, -0.09588826004271137,
+]).reshape(2, 3, 3)
+REF_ZZ_P1_FIRST5 = np.array([0.27509307818170514, 0.40584227523907235, 0.4564595419763017,
+                             0.2571023579102386, 0.5797031373806039])
+REF_ZZ_LOSS = [0.7443897265768971, 0.6829482830925295, 0.6375032784015067]
+
+
+def test_final_rotation_off_reproduces_original_model():
+    X, y = fake_data(n=40, n_features=3, seed=5)
+    default = make_model(encoding="zz", epochs=3, lr=0.05).fit(X, y)
+    explicit = make_model(encoding="zz", epochs=3, lr=0.05, final_rotation=False).fit(X, y)
+    # Default and explicit False: exactly the same numbers.
+    np.testing.assert_array_equal(default.weights_, explicit.weights_)
+    np.testing.assert_array_equal(default.predict_proba(X), explicit.predict_proba(X))
+    assert default.loss_history_ == explicit.loss_history_
+    assert not hasattr(default, "final_weights_")
+    # Same numbers as the code before the option existed.
+    np.testing.assert_allclose(default.weights_, REF_ZZ_WEIGHTS, rtol=0, atol=1e-12)
+    np.testing.assert_allclose(default.predict_proba(X)[:5, 1], REF_ZZ_P1_FIRST5,
+                               rtol=0, atol=1e-12)
+    np.testing.assert_allclose(default.loss_history_, REF_ZZ_LOSS, rtol=0, atol=1e-12)
+
+
+def test_final_rotation_draws_extra_angles_after_main_weights():
+    """With 0 epochs nothing is trained: the main start weights must match the default."""
+    X, y = fake_data(n=40, n_features=3, seed=5)
+    off = make_model(epochs=0).fit(X, y)
+    on = make_model(epochs=0, final_rotation=True).fit(X, y)
+    np.testing.assert_array_equal(off.weights_, on.weights_)
+    rng = np.random.default_rng(42)
+    rng.normal(0.0, 0.1, size=off.weights_.shape)
+    np.testing.assert_array_equal(on.final_weights_, rng.normal(0.0, 0.1, size=3))
+
+
+def test_final_rotation_trains_changes_output_and_pickles():
+    import pickle
+
+    X, y = fake_data(n=40, n_features=3, seed=5)
+    start = make_model(epochs=0, final_rotation=True).fit(X, y).final_weights_
+    on = make_model(epochs=3, lr=0.05, final_rotation=True).fit(X, y)
+    off = make_model(epochs=3, lr=0.05).fit(X, y)
+    assert on.final_weights_.shape == (3,)
+    assert not np.allclose(on.final_weights_, start)  # the 3 angles were trained
+    assert len(on.loss_history_) == 3
+    assert not np.allclose(on.predict_proba(X), off.predict_proba(X))
+    proba = on.predict_proba(X)
+    assert np.all((proba >= 0) & (proba <= 1))
+    restored = pickle.loads(pickle.dumps(on))
+    np.testing.assert_array_equal(restored.predict_proba(X), proba)
+    assert clone(on).get_params()["final_rotation"] is True
+
+
 @pytest.mark.parametrize("encoding", ["zz", "angle"])
 def test_autograd_gradient_matches_finite_differences(encoding):
     """Training only works if the backprop gradient is right: compare with (f(w+h)-f(w-h))/2h."""
