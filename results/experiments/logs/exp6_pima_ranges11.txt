@@ -1,0 +1,11 @@
+Results for 'exp6_pima_ranges11' (5 splits, 8 features, quick=False)
+  Always-guess floor : 65.10%
+  Accuracy           : 62.24% +/- 3.75%
+  Balanced accuracy  : 60.46% +/- 4.68%
+  Macro F1           : 59.78% +/- 4.28%
+  Train time / split : 325.3236s +/- 64.3799s
+  Saved CSV          : C:\Users\Lenovo\dev\Quantum Computing Competition\Quantum\results\experiments\exp6_pima_ranges11.csv
+  Started            : 2026-11-28 17:54 +0200
+  Finished           : 2026-11-28 18:21 +0200
+  Winning settings   : ['{"epochs": 40, "lr": 0.05}', '{"epochs": 20, "lr": 0.02}', '{"epochs": 20, "lr": 0.02}', '{"epochs": 20, "lr": 0.02}', '{"epochs": 20, "lr": 0.02}']
+  Settings grid      : {"lr": [0.02, 0.05], "epochs": [20, 40]}

@@ -1,0 +1,6 @@
+split,n_train,n_test,accuracy,balanced_accuracy,macro_f1,train_time_sec,best_params,selected_features
+0,614,154,0.6298701298701299,0.6255555555555556,0.6142386288727752,282.1768760998966,"{""epochs"": 40, ""lr"": 0.05}","preg,plas,pres,skin,insu,mass,pedi,age"
+1,614,154,0.5974025974025974,0.557962962962963,0.557962962962963,328.9402817999944,"{""epochs"": 20, ""lr"": 0.02}","preg,plas,pres,skin,insu,mass,pedi,age"
+2,614,154,0.6233766233766234,0.5907407407407407,0.5898989898989899,258.45909989997745,"{""epochs"": 20, ""lr"": 0.02}","preg,plas,pres,skin,insu,mass,pedi,age"
+3,615,153,0.6797385620915033,0.675188679245283,0.6631016042780749,330.70020849991124,"{""epochs"": 20, ""lr"": 0.02}","preg,plas,pres,skin,insu,mass,pedi,age"
+4,615,153,0.5816993464052288,0.5735849056603773,0.5637918745545261,426.34141620004084,"{""epochs"": 20, ""lr"": 0.02}","preg,plas,pres,skin,insu,mass,pedi,age"
