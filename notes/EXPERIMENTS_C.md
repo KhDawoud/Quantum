@@ -155,31 +155,36 @@
 
 ## Experiment 5: Curved-Data Positive Control (`make_moons`, Artificial Data, 2 Qubits)
 
+> **Data change (2026-11-28):** the moons data was changed from `400` to `768` points (`make_moons(n_samples=768, noise=0.2, random_state=42)` in `make_moons_dataset()`, `src/experiment_qkernel.py`) to match Pima's size, so every model trains on about `614` points per exam, as on Pima. Experiment 5 was rerun with the existing runner; every number below is from the 768-point run. The old 400-point numbers are kept only in the dated AI-use logs.
+>
+> **Saved reference files (2026-11-28):** `results/exp5_logreg_moons.csv`, `results/exp5_rbf_svm_moons.csv` and `results/exp5_qkernel_angle_moons.csv` were computed by Member D (`src/run_exp_d.py exp5-refs`) with each model's `make_model()` and `PARAM_GRID` imported unchanged, using C's `make_moons_dataset()`, the first 5 exams, `n_features=2` and `zero_as_missing_cols=()`. The saved logistic regression and angle files give the same numbers as the temporary references inside C's runner.
+
 ### B. Setup
-- **What changes**: Dataset switched from Pima medical records to the **artificial** 2D curved two-moons benchmark `sklearn.datasets.make_moons(n_samples=400, noise=0.2, random_state=42)` (`200` class-0 points, `200` class-1 points, exact `50.00%` majority floor), using `n_features=2` (`2` qubits) and `zero_as_missing_cols=()`.
-- **What stays the same**: Same shared harness (`src/evaluate.py`) with `n_splits_to_run=EXPERIMENT_EVAL_SPLITS` (`5` stratified splits, `seed=42`), leakage-free training-only `[0, pi]` rescaling, fixed `class_weight='balanced'`, and the exact same frozen `make_model()` + 8-combination `PARAM_GRID` (`C` in `[0.1, 1.0, 10.0, 100.0]`, `gamma` in `[0.5, 1.0]`). Matching-split references (`LogisticRegression` and `Angle` kernel) ran in a temporary directory for statistical comparison without writing extra files to `results/`.
+- **What changes**: Dataset switched from Pima medical records to the **artificial** 2D curved two-moons benchmark `sklearn.datasets.make_moons(n_samples=768, noise=0.2, random_state=42)` (`384` class-0 points, `384` class-1 points, exact `50.00%` majority floor), using `n_features=2` (`2` qubits) and `zero_as_missing_cols=()`. Each exam has `614`-`615` training and `153`-`154` test points.
+- **What stays the same**: Same shared harness (`src/evaluate.py`) with `n_splits_to_run=EXPERIMENT_EVAL_SPLITS` (`5` stratified splits, `seed=42`), leakage-free training-only `[0, pi]` rescaling, fixed `class_weight='balanced'`, and the exact same frozen `make_model()` + 8-combination `PARAM_GRID` (`C` in `[0.1, 1.0, 10.0, 100.0]`, `gamma` in `[0.5, 1.0]`). C's runner still computes matching-split references (`LogisticRegression` and `Angle` kernel) in a temporary directory; saved copies now also exist (see the note above).
 - **Prediction (written before inspecting results)**: Straight-line Logistic Regression can only draw one flat cut through curved moons, whereas the 2-qubit ZZ quantum kernel can draw a smooth curved boundary and should significantly beat Logistic Regression, proving the quantum kernel detects nonlinear structure when it exists.
 
 ### C & D. Quick Check & Time Estimate
 - **Quick check**: Ran `evaluate('exp5_qkernel_moons_quick', ..., n_features=2, quick=True, X=X_moons, y=y_moons, zero_as_missing_cols=(), n_splits_to_run=5)` cleanly (`5` splits) and immediately deleted `results/exp5_qkernel_moons_quick.csv`.
-- **Time estimate**: From `results/qkernel.csv` (`0.8274s/split` at 8 qubits on 768 rows), 5 splits at 2 qubits on 400 rows had an upper-bound estimate of **`4.14s` (`0.0690 min`)**, far below 20 minutes.
+- **Time estimate**: From `results/qkernel.csv` (`0.8274s/split` at 8 qubits on 768 rows), 5 splits at 2 qubits on 400 rows had an upper-bound estimate of **`4.14s` (`0.0690 min`)**, far below 20 minutes. *(This estimate was for the original 400-point run. The 768-point rerun of the whole runner, including references, kernel spread and figure, took about 26 s.)*
 
-### E. Results & Kernel Spread (Artificial `make_moons`, First 5 Splits, 2 Qubits)
+### E. Results & Kernel Spread (Artificial `make_moons`, 768 points, First 5 Splits, 2 Qubits)
 
 | Model | Splits | Accuracy (Mean ± Std) | Balanced Accuracy (Mean ± Std) | Macro F1 (Mean ± Std) | Train Time / Split |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **ZZ Quantum Kernel (`results/exp5_qkernel_moons.csv`)** | 5 | 93.25% ± 3.38% | **93.25% ± 3.38%** | 93.24% ± 3.39% | 0.0834s ± 0.0075s |
-| **Angle Quantum Kernel (`2q RY` temp ref.)** | 5 | 87.25% ± 3.58% | **87.25% ± 3.58%** | 87.21% ± 3.64% | 0.0571s ± 0.0008s |
-| **Logistic Regression (Linear temp ref.)** | 5 | 83.50% ± 2.05% | **83.50% ± 2.05%** | 83.45% ± 2.08% | 0.0442s ± 0.0018s |
+| **ZZ Quantum Kernel (`results/exp5_qkernel_moons.csv`)** | 5 | 93.88% ± 1.75% | **93.88% ± 1.74%** | 93.88% ± 1.75% | 0.3399s ± 0.0093s |
+| **Angle Quantum Kernel (`results/exp5_qkernel_angle_moons.csv`)** | 5 | 86.46% ± 2.60% | **86.44% ± 2.60%** | 86.42% ± 2.61% | 0.3073s ± 0.0744s |
+| **Logistic Regression (`results/exp5_logreg_moons.csv`)** | 5 | 85.68% ± 3.36% | **85.66% ± 3.35%** | 85.65% ± 3.35% | 0.1760s ± 0.0537s |
+| **RBF SVM (`results/exp5_rbf_svm_moons.csv`)** | 5 | 96.10% ± 1.71% | **96.10% ± 1.71%** | 96.10% ± 1.71% | 0.1554s ± 0.0061s |
 
-*(Artificial dataset always-guess floor: `50.00%`. Best ZZ Quantum Kernel settings were `{"C": 100.0, "gamma": 0.5}` on all 5 splits, scoring `97.50%`, `88.75%`, `93.75%`, `91.25%`, and `95.00%`.)*
+*(Artificial dataset always-guess floor: `50.00%`. Best ZZ Quantum Kernel settings were `{"C": 100.0, "gamma": 0.5}` on all 5 splits, scoring `92.21%`, `93.51%`, `94.16%`, `96.71%`, and `92.81%` balanced accuracy. RBF SVM chose `{"C": 10, "gamma": 1.0}` on all 5 splits. Test sets are not always exactly half-and-half (`76`/`77` in exams 3 and 4), so accuracy and balanced accuracy differ slightly.)*
 
 **Kernel spread (`kernel_stats()` off-diagonal values across the 5 training splits, 2 qubits)**:
 
 | Encoding | `gamma = 0.5` Mean ± Std | `gamma = 0.5` Variance ± Std | `gamma = 1.0` Mean ± Std | `gamma = 1.0` Variance ± Std |
 | :--- | :---: | :---: | :---: | :---: |
-| **ZZ (2 reps)** | 0.7179 ± 0.0044 | 0.0351 ± 0.0009 | 0.4097 ± 0.0054 | 0.0731 ± 0.0006 |
-| **Angle (`RY`)** | 0.8489 ± 0.0033 | 0.0152 ± 0.0006 | 0.5570 ± 0.0067 | 0.0843 ± 0.0017 |
+| **ZZ (2 reps)** | 0.7246 ± 0.0019 | 0.0344 ± 0.0004 | 0.4120 ± 0.0032 | 0.0730 ± 0.0004 |
+| **Angle (`RY`)** | 0.8473 ± 0.0019 | 0.0156 ± 0.0004 | 0.5545 ± 0.0037 | 0.0857 ± 0.0011 |
 
 *(Measured check: 2-qubit ZZ kernel matched `hand_zz_2qubit_kernel()` within `2.665e-15` max difference on split 0.)*
 
@@ -187,15 +192,19 @@
 
 | Comparison (5 Matching `make_moons` Splits) | ZZ Kernel Mean ± Std | Reference Mean ± Std | Difference (`ZZ − ref`) | p-value | Conclusion |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| **ZZ Kernel vs. Logistic Regression (Linear)** | 93.25% ± 3.38% | 83.50% ± 2.05% | +9.75% | 0.0095 | **significant difference found (p < 0.05)** |
-| **ZZ Kernel vs. Angle Kernel (`RY`, Unentangled)** | 93.25% ± 3.38% | 87.25% ± 3.58% | +6.00% | 0.0299 | **significant difference found (p < 0.05)** |
+| **ZZ Kernel vs. Logistic Regression (Linear)** | 93.88% ± 1.74% | 85.66% ± 3.35% | +8.21% | 0.0203 | **significant difference found (p < 0.05)** |
+| **ZZ Kernel vs. Angle Kernel (`RY`, Unentangled)** | 93.88% ± 1.74% | 86.44% ± 2.60% | +7.44% | 0.0099 | **significant difference found (p < 0.05)** |
+| **ZZ Kernel vs. RBF SVM (classical, curved)** | 93.88% ± 1.74% | 96.10% ± 1.71% | -2.22% | 0.1887 | no significant difference found |
+| *(RBF SVM vs. Logistic Regression)* | *96.10% ± 1.71%* | *85.66% ± 3.35%* | *+10.43% (RBF − LogReg)* | *0.0113* | *significant difference found (p < 0.05)* |
 
 ### G. Figure
-- Saved to [`figures/exp5_qkernel.png`](../figures/exp5_qkernel.png) (left panel: split-0 curved ZZ vs. straight-line Logistic Regression decision boundaries on the artificial `make_moons` points; right panel: 5-split balanced accuracy ± std across models).
+- Saved to [`figures/exp5_qkernel.png`](../figures/exp5_qkernel.png) (left panel: split-0 curved ZZ vs. straight-line Logistic Regression decision boundaries on the artificial `make_moons` points; right panel: 5-split balanced accuracy ± std for Logistic Regression, Angle kernel and ZZ kernel). Regenerated on 2026-11-28 from the 768-point run.
+- The RBF SVM is **not** in this figure: adding it would need a change to the plotting function's inputs and to the runner, not just one extra bar, so the figure was left as C's code draws it. The RBF SVM numbers are in the tables above.
 
 ### H. Plain-Language Explanation
-- On curved **artificial** `make_moons` data (`n = 400`, `noise = 0.2`), the frozen 2-qubit ZZ quantum kernel reached **93.25%** balanced accuracy, significantly beating both straight-line **Logistic Regression** (`83.50%`, `+9.75%`, `p = 0.0095`) and unentangled **Angle (`RY`)** encoding (`87.25%`, `+6.00%`, `p = 0.0299`).
-- Unlike Experiment 3 on 8-qubit Pima (where ZZ and Angle showed no significant difference), the pairwise `x0 * x1` ZZ interaction clearly helps here because the two crescent moons genuinely curve around each other, and 2 qubits avoid high-qubit kernel concentration (`var = 0.035–0.073`).
+- On curved **artificial** `make_moons` data (`n = 768`, `noise = 0.2`), the frozen 2-qubit ZZ quantum kernel reached **93.88%** balanced accuracy, significantly beating both straight-line **Logistic Regression** (`85.66%`, `+8.21%`, `p = 0.0203`) and unentangled **Angle (`RY`)** encoding (`86.44%`, `+7.44%`, `p = 0.0099`).
+- A classical RBF SVM, which also draws curved boundaries, scored `96.10% ± 1.71%`, `2.22` points above the ZZ kernel; no significant difference found (`p = 0.1887`, 5 exams), so on this data the quantum kernel matches a good classical curved model rather than beating it.
+- Unlike Experiment 3 on 8-qubit Pima (where ZZ and Angle showed no significant difference), the pairwise `x0 * x1` ZZ interaction clearly helps here because the two crescent moons genuinely curve around each other, and 2 qubits avoid high-qubit kernel concentration (`var = 0.034–0.073`).
 - **Interpretation vs. Hypothesis**: This positive control proves our `QuantumKernelSVC` circuit and evaluation pipeline can learn strong curved boundaries cleanly; our **hypothesis** for why ZZ did not beat Logistic Regression on Pima (`73.97%` vs. `74.20%`) is that real Pima diabetes features have a mostly smooth, overlapping boundary rather than sharp interlocking curves.
 
 ---

@@ -637,8 +637,8 @@ def run_exp3_qkernel(
 
 
 def make_moons_dataset() -> tuple[np.ndarray, np.ndarray]:
-    """Return the artificial 2D curved positive-control dataset (400 points, noise=0.2)."""
-    X_moons, y_moons = make_moons(n_samples=400, noise=0.2, random_state=42)
+    """Return the artificial 2D curved positive-control dataset (768 points, noise=0.2)."""
+    X_moons, y_moons = make_moons(n_samples=768, noise=0.2, random_state=42)
     return np.asarray(X_moons, dtype=np.float64), np.asarray(y_moons, dtype=np.int64)
 
 
@@ -779,7 +779,7 @@ def plot_exp5_qkernel_moons(
     ax_boundary.set(
         xlabel="Moon Feature x0 (raw coordinates)",
         ylabel="Moon Feature x1 (raw coordinates)",
-        title="Artificial Data: make_moons (n=400, noise=0.2)\nSplit-0 Decision Boundaries (2 Qubits)",
+        title="Artificial Data: make_moons (n=768, noise=0.2)\nSplit-0 Decision Boundaries (2 Qubits)",
         xlim=(x0_min, x0_max),
         ylim=(x1_min, x1_max),
     )
@@ -937,7 +937,7 @@ def run_exp5_qkernel_moons(
         _summarize("logreg_ref", logreg_df),
     ]
 
-    print("=== Experiment 5 Metrics (Artificial make_moons, n=400, noise=0.2, 5 Splits) ===")
+    print("=== Experiment 5 Metrics (Artificial make_moons, n=768, noise=0.2, 5 Splits) ===")
     print(f"  Majority floor: {s_zz['majority_floor'] * 100.0:.2f}%")
     print(pd.DataFrame(summary_table).to_string(index=False))
 

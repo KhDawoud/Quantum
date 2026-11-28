@@ -142,3 +142,17 @@ Team decision: main table = 25 splits for all models; experiments = first 5 spli
 - A's deleted run is known only from A's own AI log, not from a file (unverified).
 - The per-file commit for C's CSV and figure is unverified; where "768 patients" was agreed is unverified.
 - Nothing else was edited, created, deleted or committed.
+
+## Session 12: 2026-11-28: moons data 400 -> 768 points, experiment 5 rerun
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| Search | Listed every place depending on the moons size or quoting moons numbers, before changing anything. | `git grep`. |
+| Data | Changed `make_moons(n_samples=400, ...)` to `768` in `make_moons_dataset()` (`src/experiment_qkernel.py`), plus its docstring, figure title and printed heading. No test depended on 400. | n/a |
+| Runs | Reran C's runner (`python -m src.experiment_qkernel --exp 5`, 26 s), which overwrote `results/exp5_qkernel_moons.csv` and `figures/exp5_qkernel.png`; then added and ran `src/run_exp_d.py exp5-refs` (7 s) to save `results/exp5_logreg_moons.csv`, `results/exp5_rbf_svm_moons.csv`, `results/exp5_qkernel_angle_moons.csv` with each model's file unchanged. One run at a time. | Read the four files and ran `compare_models`: ZZ 93.88%, angle 86.44%, logreg 85.66%, RBF SVM 96.10%; ZZ vs logreg p = 0.0203, ZZ vs angle p = 0.0099, RBF vs logreg p = 0.0113, ZZ vs RBF p = 0.1887 (no significant difference found). |
+| Text | Updated `notes/EXPERIMENTS_C.md`, `notes/DESIGN_C.md`, `PROJECT_CONTEXT.md`, the notebook's markdown and a top line in `notes/MOONS_CHECK.md`, using only numbers from the new files and output; added the user-approved RBF SVM sentence. | `pytest tests/test_qkernel.py tests/test_data.py tests/test_evaluate.py`: 42 passed in 17 s. |
+
+### Honest limits
+- The notebook's markdown was edited but the notebook was not re-executed, so its stored outputs still show the old 400-point table until it is re-run.
+- The RBF SVM is not in `figures/exp5_qkernel.png` (would need more than one extra bar in C's plotting code).
+- Dated AI logs (A, C, D) and the body of `MOONS_CHECK.md` still quote the 400-point numbers on purpose.

@@ -482,11 +482,50 @@ def report_exp2() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# experiment 5 references: saved moons results for logreg, RBF SVM, angle kernel
+# --------------------------------------------------------------------------- #
+EXP5_REF_NAMES = ("exp5_logreg_moons", "exp5_rbf_svm_moons", "exp5_qkernel_angle_moons")
+
+
+def run_exp5_refs() -> None:
+    """Same data as C's runner (make_moons_dataset), first 5 exams, 2 columns.
+
+    Each model's make_model and PARAM_GRID are imported unchanged. Files go to
+    results/ next to C's results/exp5_qkernel_moons.csv; nothing is overwritten.
+    """
+    from src import model_logreg, model_qkernel, model_rbf_svm
+    from src.experiment_qkernel import make_moons_dataset
+
+    results_dir = ROOT / "results"
+    for name in EXP5_REF_NAMES:
+        _refuse_if_exists(results_dir / f"{name}.csv")
+
+    X_moons, y_moons = make_moons_dataset()
+    print(f"moons data: {X_moons.shape[0]} points, class counts {np.bincount(y_moons).tolist()}")
+    runs = (
+        ("exp5_logreg_moons", model_logreg.make_model, model_logreg.PARAM_GRID),
+        ("exp5_rbf_svm_moons", model_rbf_svm.make_model, model_rbf_svm.PARAM_GRID),
+        ("exp5_qkernel_angle_moons", lambda: model_qkernel.make_model(encoding="angle"),
+         model_qkernel.PARAM_GRID),
+    )
+    for name, factory, grid in runs:  # one at a time
+        summary = evaluate(
+            name, factory, grid,
+            n_features=2,
+            X=X_moons, y=y_moons,
+            zero_as_missing_cols=(),
+            n_splits_to_run=EXPERIMENT_EVAL_SPLITS,
+            results_dir=results_dir,
+        )
+        print(format_summary(summary), flush=True)
+
+
+# --------------------------------------------------------------------------- #
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("task", choices=["exp3", "exp3-report", "exp1", "exp1-dials",
-                                         "exp1-report", "exp2", "exp2-report"])
+                                         "exp1-report", "exp2", "exp2-report", "exp5-refs"])
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--q", type=int, help="number of columns for exp1 (4 or 6)")
     args = parser.parse_args()
@@ -504,6 +543,8 @@ def main() -> None:
         run_exp2(args.quick)
     elif args.task == "exp2-report":
         report_exp2()
+    elif args.task == "exp5-refs":
+        run_exp5_refs()
 
 
 if __name__ == "__main__":

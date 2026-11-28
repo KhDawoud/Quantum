@@ -1,5 +1,7 @@
 # MOONS_CHECK: has anyone run experiment 5 (the moons control)?
 
+> **Update (2026-11-28, later):** the moons data was changed from 400 to 768 points in `make_moons_dataset()` and experiment 5 was rerun. Saved results now exist for the ZZ kernel, angle kernel, logistic regression and RBF SVM (`results/exp5_*_moons.csv`); see `notes/EXPERIMENTS_C.md`. The report below describes the earlier 400-point state and its numbers are out of date.
+
 Checked 2026-11-28, read-only (git commands only; no model, no experiment, no merge, no branch switch). Everything below comes from `git fetch --all --prune` (nothing new came in), `git ls-tree`, `git grep`, `git show` and `git log` on every branch. Anything I could not confirm is marked **unverified**.
 
 `git status` before starting: clean (nothing uncommitted).
