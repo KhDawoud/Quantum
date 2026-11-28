@@ -228,3 +228,19 @@ On artificial data with an obvious curved boundary, both VQCs learned a lot (24-
 - Artificial data, 5 exams only.
 - The VQC training time (about 50 s per exam) is not comparable in kind with the kernels' (under 0.4 s); both include tuning.
 - The live-dial count at 2 qubits was not measured.
+
+## Experiment 6 (added after seeing results): circuit structure vs training, moons control (ARTIFICIAL data)
+
+Question: on the moons control, is the ZZ VQC below logistic regression because of the circuit's structure or because of its training? One change at a time against the saved experiment 5 ZZ VQC (`results/experiments/exp5_vqc_zz_moons768_5ex.csv`, 74.1%, first 5 exams). Run A adds one trainable final rotation on the readout qubit (usual settings grid). Run B keeps the circuit and trains longer (100 or 200 rounds).
+
+### Prediction for run A (extra final rotation)
+Recorded here 2026-11-28 16:59 +0200. I gave this prediction to Claude Code after run A's result had already been shown to me. I say I wrote it earlier elsewhere; that earlier record is **unverified**.
+
+> I expected the ZZ VQC with the extra final rotation to score higher in balanced accuracy than the saved ZZ VQC on moons (74.1%, first 5 exams). My reasoning: the extra rotation adds trainable dials that can affect the reading, so the circuit can fit more.
+
+### Prediction for run B (longer training)
+Recorded here 2026-11-28 16:59 +0200. Given to Claude Code while run B was still running, **before its result was seen**.
+
+> I expect longer training (100 or 200 rounds) to raise the ZZ VQC's balanced accuracy on moons above 74.1% (first 5 exams). Reason (hypothesis): on Pima the ZZ VQC mostly chose the longer setting (40 rounds) and underfitted even its own training patients, so it may be stopping too early.
+
+Note: the claim "on Pima the ZZ VQC mostly chose 40 rounds" has not been checked against the saved files yet (**unverified**).
