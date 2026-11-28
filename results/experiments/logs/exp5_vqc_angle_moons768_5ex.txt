@@ -1,0 +1,10 @@
+Results for 'exp5_vqc_angle_moons768_5ex' (5 splits, 2 features, quick=False)
+  Always-guess floor : 50.00%
+  Accuracy           : 82.81% +/- 2.84%
+  Balanced accuracy  : 82.80% +/- 2.83%
+  Macro F1           : 82.79% +/- 2.82%
+  Train time / split : 50.2574s +/- 1.7143s
+  Saved CSV          : C:\Users\Lenovo\dev\Quantum Computing Competition\Quantum\results\experiments\exp5_vqc_angle_moons768_5ex.csv
+  Started            : 2026-11-28 13:46 +0200
+  Finished           : 2026-11-28 13:50 +0200
+  Winning settings   : ['{"epochs": 40, "lr": 0.05}', '{"epochs": 40, "lr": 0.05}', '{"epochs": 20, "lr": 0.02}', '{"epochs": 20, "lr": 0.02}', '{"epochs": 20, "lr": 0.05}']

@@ -169,3 +169,62 @@ Two honest caveats to include:
 
 The VQC was tuned over 4 combinations of settings, and the other models over up to 8, so it was tuned somewhat less.
 The comparison covers this one dataset and these settings. It doesn't show that quantum models are generally worse.
+---
+
+## Experiment 5: curved-data control (make_moons, ARTIFICIAL data, 2 qubits)
+
+### Prediction (written 2026-11-28 13:39 +0200, before any run)
+Written after experiments 1 to 3, the 25-exam main results, and after seeing the saved moons results of the other models.
+
+> Both VQCs will score between about 80 and 93%. I expect the ZZ VQC to be at or slightly above the angle VQC, because its pair gate adds a product term that helps with curves, and both to stay below the ZZ kernel (93.9%) and the RBF SVM (96.1%). If either VQC scores at or below logistic regression (85.7%), I'll conclude the VQC struggles even on clearly curved data.
+
+### Setup
+- **What changed:** the data. Pima was replaced by the **artificial** two-moons data, `make_moons(n_samples=768, noise=0.2, random_state=42)` from `make_moons_dataset()` in `src/experiment_qkernel.py` (384 + 384 points, 2 columns, so 2 qubits). Floor: 50%.
+- **What stayed the same:** the VQC (`src/model_vqc.py`, unchanged), 2 layers, the usual `PARAM_GRID` (lr {0.02, 0.05} x epochs {20, 40}, 4 combinations tuned per exam), seed 42, and exactly the same `evaluate()` arguments as the saved moons results of the other models (`n_features=2`, `zero_as_missing_cols=()`, `n_splits_to_run=EXPERIMENT_EVAL_SPLITS`), so the 5 exams (614-615 training / 153-154 test points) match the saved files.
+- **Baselines:** the saved files `results/exp5_logreg_moons.csv`, `results/exp5_rbf_svm_moons.csv`, `results/exp5_qkernel_angle_moons.csv`, `results/exp5_qkernel_moons.csv` (not re-run).
+- Script: `src/run_exp_d.py` (`exp5-vqc --enc zz`, `exp5-vqc --enc angle`, `exp5-vqc-report`). Quick checks (1 exam, 2 settings) in a scratch folder, deleted, numbers not used.
+- Runs, one after the other, nothing else running: ZZ 13:42-13:46, angle 13:46-13:50 (2026-11-28 +0200).
+
+### Results (ARTIFICIAL moons data, same 5 exams; mean +/- spread across exams)
+
+| Model | Balanced accuracy | Gap to logistic regression | Above the 50% floor | Time per exam |
+|---|---|---|---|---|
+| Logistic regression | 85.66% +/- 3.35 | 0 | +35.7 points | 0.18 s |
+| RBF SVM | 96.10% +/- 1.71 | +10.43 | +46.1 points | 0.16 s |
+| Quantum kernel, angle | 86.44% +/- 2.60 | +0.78 | +36.4 points | 0.31 s |
+| Quantum kernel, ZZ | 93.88% +/- 1.74 | +8.21 | +43.9 points | 0.34 s |
+| **VQC, angle** | **82.80% +/- 2.83** | **-2.86** | +32.8 points | 50.3 s |
+| **VQC, ZZ** | **74.09% +/- 4.46** | **-11.58** | +24.1 points | 53.1 s |
+
+| Comparison (balanced accuracy, compare_models, df = 4) | Difference | p-value | Verdict |
+|---|---|---|---|
+| VQC ZZ vs logistic regression | -11.58 points | 0.0125 | significant difference found |
+| VQC angle vs logistic regression | -2.86 points | 0.0224 | significant difference found |
+| VQC ZZ vs kernel ZZ | -19.79 points | 0.0007 | significant difference found |
+| VQC angle vs kernel angle | -3.64 points | 0.0018 | significant difference found |
+| VQC ZZ vs VQC angle | -8.71 points | 0.0125 | significant difference found |
+
+Full table: `results/experiments/exp5_vqc_comparison.csv`. With only 5 exams these tests have little power; these gaps were still consistent enough across the 5 exams to come out significant.
+
+Per exam (balanced accuracy) and winning settings:
+
+| Exam | VQC angle | Angle settings | VQC ZZ | ZZ settings |
+|---|---|---|---|---|
+| 0 | 0.844 | 40 epochs, lr 0.05 | 0.727 | 20, 0.05 |
+| 1 | 0.805 | 40, 0.05 | 0.747 | 40, 0.05 |
+| 2 | 0.844 | 20, 0.02 | 0.747 | 20, 0.05 |
+| 3 | 0.856 | 20, 0.02 | 0.804 | 40, 0.05 |
+| 4 | 0.791 | 20, 0.05 | 0.680 | 20, 0.05 |
+
+Figure: `figures/experiments/exp5_vqc.png` (all six models, mean +/- spread, each exam as a dot, dotted line at 50%).
+
+### Against my prediction
+I predicted both VQCs between about 80 and 93%, ZZ at or slightly above angle, both below the ZZ kernel and the RBF SVM, and said that a VQC at or below logistic regression (85.7%) would mean the VQC struggles even on clearly curved data. Measured: angle 82.8% (inside the range), ZZ 74.1% (below the range), **ZZ well below angle** (the opposite of my prediction), both below the two kernels and the RBF SVM (as predicted), and **both below logistic regression**, significantly. By my own rule, the VQC struggles even on clearly curved data.
+
+### What this means (2-3 sentences)
+On artificial data with an obvious curved boundary, both VQCs learned a lot (24-33 points above the 50% floor) but scored significantly below a straight-line logistic regression, while the quantum kernel with the same ZZ map reached 93.9%. So the ZZ feature map itself can describe the curve (the kernel shows it), and the weak part is the trained VQC on top of it, and ZZ again does worse than angle in the VQC, as on Pima (experiment 3). **Hypotheses, not measured:** with 2 qubits the VQC has very few working dials (only 12 live dials were found at 4 qubits; the 2-qubit count was not checked) and a single readout qubit, and training with 20-40 rounds of Adam may stop in a poor spot, so the VQC cannot shape a curved boundary that the kernel (which fits an SVM on all pairwise similarities) finds directly.
+
+### Honest limits
+- Artificial data, 5 exams only.
+- The VQC training time (about 50 s per exam) is not comparable in kind with the kernels' (under 0.4 s); both include tuning.
+- The live-dial count at 2 qubits was not measured.

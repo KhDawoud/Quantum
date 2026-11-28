@@ -156,3 +156,17 @@ Team decision: main table = 25 splits for all models; experiments = first 5 spli
 - The notebook's markdown was edited but the notebook was not re-executed, so its stored outputs still show the old 400-point table until it is re-run.
 - The RBF SVM is not in `figures/exp5_qkernel.png` (would need more than one extra bar in C's plotting code).
 - Dated AI logs (A, C, D) and the body of `MOONS_CHECK.md` still quote the 400-point numbers on purpose.
+
+## Session 13: 2026-11-28: experiment 5 for the VQC (moons, ARTIFICIAL data)
+
+| Step | What the AI did | What was checked by running code |
+|---|---|---|
+| Step 0 | Confirmed `make_moons_dataset()` uses `make_moons(n_samples=768, noise=0.2, random_state=42)`, copied the `evaluate()` arguments of `exp5-refs`, and checked the 4 saved moons files (5 rows, splits 0-4, 614-615 / 153-154). | Read-only commands. |
+| Prediction | Wrote the user's prediction into `notes/EXPERIMENTS_D.md` at 13:39, before any run. | n/a |
+| Script | Added `exp5-vqc` and `exp5-vqc-report` to `src/run_exp_d.py`. | Quick checks for both encodings in `scratch_quick/`, then deleted. |
+| Runs | ZZ, then angle, one at a time (4 min each). | VQC ZZ 74.09%, VQC angle 82.80%; compare_models against the saved files: both significantly below logistic regression (p = 0.0125, 0.0224) and their matching kernels (p = 0.0007, 0.0018); ZZ below angle (p = 0.0125). |
+| Notes | Manifest rows (written by the script), notes, figure `figures/experiments/exp5_vqc.png`. | n/a |
+
+### Honest limits
+- 5 exams of artificial data; causes are hypotheses.
+- Manifest rows record commit `33750de`; the new `exp5-vqc` code in `src/run_exp_d.py` was not yet committed then.

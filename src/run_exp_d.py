@@ -521,11 +521,137 @@ def run_exp5_refs() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# experiment 5 for the VQC: same moons data and arguments as exp5-refs
+# --------------------------------------------------------------------------- #
+EXP5_VQC = {"zz": "exp5_vqc_zz_moons768_5ex", "angle": "exp5_vqc_angle_moons768_5ex"}
+EXP5_SAVED = {  # label -> saved file (same data, same 5 exams)
+    "Logistic regression": ROOT / "results" / "exp5_logreg_moons.csv",
+    "RBF SVM": ROOT / "results" / "exp5_rbf_svm_moons.csv",
+    "Kernel, angle": ROOT / "results" / "exp5_qkernel_angle_moons.csv",
+    "Kernel, ZZ": ROOT / "results" / "exp5_qkernel_moons.csv",
+}
+
+
+def run_exp5_vqc(encoding: str, quick: bool) -> None:
+    from src.experiment_qkernel import make_moons_dataset
+
+    if encoding not in EXP5_VQC:
+        sys.exit("exp5-vqc needs --enc zz or --enc angle")
+    X_moons, y_moons = make_moons_dataset()
+    _run(
+        EXP5_VQC[encoding],
+        lambda: make_model(encoding=encoding),
+        quick=quick,
+        command=f"python -m src.run_exp_d exp5-vqc --enc {encoding}",
+        n_features=2,
+        X=X_moons,
+        y=y_moons,
+        zero_as_missing_cols=(),
+        n_splits_to_run=EXPERIMENT_EVAL_SPLITS,
+        manifest={
+            "experiment": "5 (moons control, ARTIFICIAL data)",
+            "changed": "data: Pima -> make_moons(n_samples=768, noise=0.2, random_state=42) "
+                       "from make_moons_dataset(); 2 columns = 2 qubits",
+            "same": f"{encoding} encoding, 2 layers, PARAM_GRID, first 5 exams, seed 42, "
+                    "same evaluate() arguments as exp5-refs",
+            "exams": "first 5 exams (splits 0-4) of the moons data",
+            "columns": "2 (moons x0, x1)",
+            "encoding": encoding,
+            "layers": "2",
+            "tuning": "4 combinations per exam (3-fold inner GridSearchCV)",
+            "baseline": "saved results/exp5_*_moons.csv (logreg, RBF SVM, kernel angle, kernel ZZ)",
+        },
+    )
+
+
+def report_exp5_vqc() -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    runs = {label: pd.read_csv(path) for label, path in EXP5_SAVED.items()}
+    runs["VQC, angle"] = pd.read_csv(EXP_DIR / f"{EXP5_VQC['angle']}.csv")
+    runs["VQC, ZZ"] = pd.read_csv(EXP_DIR / f"{EXP5_VQC['zz']}.csv")
+    logreg = runs["Logistic regression"]
+
+    summary = []
+    for label, d in runs.items():
+        row = {
+            "model": label,
+            "balanced_accuracy_mean": float(d["balanced_accuracy"].mean()),
+            "balanced_accuracy_std": float(d["balanced_accuracy"].std(ddof=1)),
+            "accuracy_mean": float(d["accuracy"].mean()),
+            "train_time_sec_mean": float(d["train_time_sec"].mean()),
+            "gap_to_logreg": float(d["balanced_accuracy"].mean() - logreg["balanced_accuracy"].mean()),
+            "above_50_floor": float(d["balanced_accuracy"].mean() - 0.5),
+            "best_params": "; ".join(f"{k} x{v}" for k, v in d["best_params"].value_counts().items()),
+        }
+        summary.append(row)
+    print(pd.DataFrame(summary).round(4).to_string(index=False))
+
+    pairs = [
+        ("VQC, ZZ", "Logistic regression"),
+        ("VQC, angle", "Logistic regression"),
+        ("VQC, ZZ", "Kernel, ZZ"),
+        ("VQC, angle", "Kernel, angle"),
+        ("VQC, ZZ", "VQC, angle"),
+    ]
+    rows = []
+    for a, b in pairs:
+        res = compare_models(runs[a], runs[b], metric="balanced_accuracy")
+        rows.append({"model_a": a, "model_b": b, "mean_a": res["mean_a"], "mean_b": res["mean_b"],
+                     "mean_diff_a_minus_b": res["mean_diff"], "t_stat": res["t_stat"],
+                     "df": res["df"], "p_value": res["p_value"], "conclusion": res["conclusion"]})
+    table = pd.DataFrame(rows)
+    out = EXP_DIR / "exp5_vqc_comparison.csv"
+    _refuse_if_exists(out)
+    table.to_csv(out, index=False)
+    print()
+    with pd.option_context("display.width", 220):
+        print(table.round(4).to_string(index=False))
+    for label in ("VQC, angle", "VQC, ZZ"):
+        d = runs[label]
+        print(f"\n{label} per exam:")
+        print(d[["split", "balanced_accuracy", "train_time_sec", "best_params"]].round(4)
+              .to_string(index=False))
+
+    FIG_DIR.mkdir(parents=True, exist_ok=True)
+    fig_path = FIG_DIR / "exp5_vqc.png"
+    _refuse_if_exists(fig_path)
+    order = ["Logistic regression", "RBF SVM", "Kernel, angle", "Kernel, ZZ",
+             "VQC, angle", "VQC, ZZ"]
+    colors = ["#8C8C8C", "#8C8C8C", "#4C72B0", "#4C72B0", "#DD8452", "#DD8452"]
+    fig, ax = plt.subplots(figsize=(7.5, 4.4))
+    for x, (label, color) in enumerate(zip(order, colors)):
+        vals = runs[label]["balanced_accuracy"].to_numpy()
+        ax.bar(x, vals.mean(), color=color, alpha=0.8, width=0.6)
+        ax.errorbar(x, vals.mean(), yerr=vals.std(ddof=1), color="black", capsize=5)
+        ax.scatter(np.full(len(vals), x) + np.linspace(-0.12, 0.12, len(vals)), vals,
+                   color="black", s=10, zorder=3)
+        ax.text(x, vals.mean() + vals.std(ddof=1) + 0.012, f"{100 * vals.mean():.1f}%",
+                ha="center", fontsize=8.5)
+    ax.axhline(0.5, color="red", ls=":", lw=1.2, label="always-guess floor (50%)")
+    ax.set_xticks(range(len(order)), [o.replace(", ", "\n") for o in order], fontsize=8.5)
+    ax.set_ylim(0.4, 1.05)
+    ax.set_ylabel("Balanced accuracy (test points)")
+    ax.set_title("Exp 5: moons control (ARTIFICIAL data, 768 points, 2 qubits), same 5 exams",
+                 fontsize=9.5)
+    ax.legend(loc="lower right", fontsize=8)
+    ax.grid(axis="y", alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(fig_path, dpi=150)
+    print(f"\nFigure saved: {fig_path}")
+
+
+# --------------------------------------------------------------------------- #
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("task", choices=["exp3", "exp3-report", "exp1", "exp1-dials",
-                                         "exp1-report", "exp2", "exp2-report", "exp5-refs"])
+                                         "exp1-report", "exp2", "exp2-report", "exp5-refs",
+                                         "exp5-vqc", "exp5-vqc-report"])
+    parser.add_argument("--enc", choices=["zz", "angle"], help="encoding for exp5-vqc")
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--q", type=int, help="number of columns for exp1 (4 or 6)")
     args = parser.parse_args()
@@ -545,6 +671,10 @@ def main() -> None:
         report_exp2()
     elif args.task == "exp5-refs":
         run_exp5_refs()
+    elif args.task == "exp5-vqc":
+        run_exp5_vqc(args.enc, args.quick)
+    elif args.task == "exp5-vqc-report":
+        report_exp5_vqc()
 
 
 if __name__ == "__main__":
