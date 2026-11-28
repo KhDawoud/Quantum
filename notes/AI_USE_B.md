@@ -70,3 +70,24 @@ and the full-grid and quick Pima runners. The generated CSVs are included.
   src/experiments.py gets only the B experiment import.
 - Integrate this contribution on the fetched main history and use a normal
   fast-forward push. Do not force-push or merge unrelated model branches.
+
+
+## 2026-11-28 — Experiment 1 completion and publication
+
+- User requested running RBF Experiment 1 and pushing it in the locations used
+  by teammates. Codex worked from main `e11fd45` in an isolated worktree,
+  preserving unrelated local runner changes and rerun results.
+- Matched A/C/D's five-split, full-grid protocol and the notebook's expected
+  exp1_rbf_svm_q4/q6 filenames. Reused published 8-feature baseline rows 0..4.
+- Extended src/experiment_rbf.py with an explicit exp1 CLI; no-argument behavior
+  still runs Experiment 2. Model, preprocessing, and shared evaluator unchanged.
+- Generated the two CSVs, an RBF figure, experiment notes and paired tests.
+  Verified selected columns and split sizes agree with A, C and D.
+- Refreshed only the combined notebook's Experiment 1 output/coverage text
+  and combined feature-count figure; teammate results are preserved.
+- No independent human pre-run prediction or human verification is claimed.
+  The model grid was not changed in response to observed scores.
+- Validation: all 77 tests passed; the notebook Experiment 1 cell executed
+  successfully and verified identical selected columns across all four models.
+  Both changed charts were visually inspected. Existing result CSVs, other
+  notebook sections, and the kernel-spread figure are unchanged.

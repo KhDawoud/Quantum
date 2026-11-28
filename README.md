@@ -35,6 +35,18 @@ The standard run explicitly uses **25 outer splits** and all eight settings,
 matching the Nov 26 decision on main. Quick mode uses five splits and two
 settings; it writes a separate development CSV. Both use balanced class weights.
 
+### Model B feature-count experiment (Experiment 1)
+
+```bash
+python -m src.experiment_rbf exp1
+```
+
+Runs the full tuning grid on the first five shared splits at 4 and 6 features.
+Reuses the first five rows of `results/rbf_svm.csv` for the 8-feature baseline.
+Saves `results/exp1_rbf_svm_q4.csv`, `results/exp1_rbf_svm_q6.csv`, and
+`figures/exp1_rbf_svm.png`. The combined notebook automatically loads these
+filenames. Results and paired significance tests are in `notes/EXPERIMENTS_B.md`.
+
 ### Model B training-size experiment
 
 ```bash
